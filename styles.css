@@ -1,0 +1,360 @@
+
+/* Font Face Declarations */
+@font-face {
+    font-family: 'Liebling';
+    src: url('./fonnts.com-Liebling_Thin.otf') format('opentype');
+    font-weight: 100;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Liebling';
+    src: url('./fonnts.com-Liebling_Light.otf') format('opentype');
+    font-weight: 300;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Liebling';
+    src: url('./fonnts.com-Liebling_Regular.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+}
+
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --cream-bg: #F5F1E8;
+    --sage-green: #6B7F5C;
+    --text-primary: #4A5943;
+    --border-color: #8B9A7D;
+    
+    /* Base font size for rem calculations */
+    font-size: 16px;
+}
+
+body {
+    font-family: 'Liebling', sans-serif;
+    background-color: var(--cream-bg);
+    color: var(--text-primary);
+    line-height: 1.6;
+    direction: rtl;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Container */
+.container {
+    max-width: 100%;
+    min-height: 100vh;
+    margin: 0 auto;
+    padding: 0% 2% 0% 2%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Header Section */
+.header {
+    text-align: center;
+    margin-bottom: 0.5vh;
+    padding-top: 10%;
+}
+
+.swan-logo {
+    margin-bottom: 0.5vh;
+}
+
+.swan-logo .logo {
+    width: clamp(350px, 50vw, 450px);
+    max-width: 90%;
+    height: clamp(150px, 20vw, 200px);
+    object-fit: cover;
+    object-position: center;
+    display: block;
+    margin: 0 auto;
+}
+
+.couple-names {
+    font-family: 'Liebling', serif;
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    font-weight: 300;
+    letter-spacing: 0.3em;
+    color: var(--sage-green);
+    margin: 0;
+    padding: 0 2%;
+}
+
+/* Hero Section */
+.hero {
+    width: 100%;
+    max-width: min(90%, 400px);
+    margin: 0 auto 4vh;
+}
+
+.hero-image-container {
+    position: relative;
+    padding: 3%;
+    background: linear-gradient(135deg, var(--cream-bg) 0%, #ebe7db 100%);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(107, 127, 92, 0.15);
+}
+
+.hero-placeholder {
+    width: 100%;
+    border: 3px solid var(--sage-green);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.hero-placeholder svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.hero-image {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 4px;
+}
+
+/* Main Content */
+.main-content {
+    width: 100%;
+    max-width: min(95%, 600px);
+    margin: 0 auto;
+    padding: 0 2%;
+}
+
+.welcome-title {
+    font-family: 'Liebling', sans-serif;
+    font-size: clamp(1.5rem, 5vw, 2rem);
+    font-weight: 300;
+    color: var(--sage-green);
+    text-align: center;
+    margin-bottom: 3vh;
+    line-height: 1.4;
+}
+
+.intro-text {
+    text-align: center;
+    font-size: clamp(1rem, 2.5vw, 1.1rem);
+    font-weight: 400;
+    color: var(--text-primary);
+    margin-bottom: 4vh;
+    line-height: 1.8;
+}
+
+.info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 6vh 0;
+}
+
+.info-list li {
+    position: relative;
+    padding: 1rem 1.25rem 1rem 2rem;
+    margin-bottom: 2vh;
+    font-size: clamp(0.95rem, 2.5vw, 1.05rem);
+    line-height: 1.7;
+    background: rgba(255, 255, 255, 0.4);
+    border-right: 3px solid var(--sage-green);
+    border-radius: 0.25rem;
+    transition: all 0.3s ease;
+}
+
+.info-list li:hover {
+    background: rgba(255, 255, 255, 0.6);
+    transform: translateX(-0.2rem);
+    box-shadow: 0 0.125rem 0.5rem rgba(107, 127, 92, 0.1);
+}
+
+.info-list li::before {
+    content: "✦";
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--sage-green);
+    font-size: 0.9rem;
+}
+
+/* Footer */
+.footer {
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    margin-top: 5vh;
+    margin-bottom: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.floral-border {
+    width: 100%;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+.floral-border-img {
+    width: 150%;
+    max-width: 160%;
+    height: auto;
+    display: block;
+    margin: 0;
+    position: relative;
+    left: 3rem;
+    top: 3rem;
+}
+
+/* Tablet Styles (768px and up) */
+@media (min-width: 768px) {
+    .container {
+        padding: 4vh 3%;
+    }
+
+    .header {
+        margin-bottom: 1vh;
+        padding-top: 3vh;
+    }
+
+    .swan-logo .logo {
+        width: clamp(450px, 55vw, 550px);
+        height: clamp(180px, 22vw, 240px);
+        object-fit: cover;
+        object-position: center;
+    }
+
+    .couple-names {
+        font-size: clamp(2rem, 5vw, 2.5rem);
+        letter-spacing: 0.4em;
+    }
+
+    .hero {
+        max-width: min(85%, 500px);
+        margin-bottom: 7vh;
+    }
+
+    .hero-image-container {
+        padding: 3.5%;
+    }
+
+    .welcome-title {
+        font-size: clamp(2rem, 5.5vw, 2.5rem);
+        margin-bottom: 5vh;
+    }
+
+    .intro-text {
+        font-size: clamp(1.1rem, 2.8vw, 1.2rem);
+        margin-bottom: 5.5vh;
+    }
+
+    .info-list li {
+        font-size: clamp(1.05rem, 2.7vw, 1.15rem);
+        padding: 1.125rem 1.5rem 1.125rem 2.2rem;
+        margin-bottom: 2.5vh;
+    }
+
+    .main-content {
+        padding: 0 3%;
+    }
+}
+
+/* Desktop Styles (1024px and up) */
+@media (min-width: 1024px) {
+    .container {
+        max-width: min(90%, 900px);
+        padding: 6vh 4%;
+    }
+
+    .header {
+        margin-bottom: 1.5vh;
+        padding-top: 4vh;
+    }
+
+    .swan-logo .logo {
+        width: clamp(500px, 40vw, 600px);
+        height: clamp(200px, 20vw, 260px);
+        object-fit: cover;
+        object-position: center;
+    }
+
+    .couple-names {
+        font-size: clamp(2.5rem, 4vw, 3rem);
+        letter-spacing: 0.5em;
+    }
+
+    .hero {
+        max-width: min(80%, 600px);
+        margin-bottom: 8vh;
+    }
+
+    .hero-image-container {
+        padding: 4%;
+    }
+
+    .welcome-title {
+        font-size: clamp(2.5rem, 4vw, 3rem);
+        margin-bottom: 6vh;
+    }
+
+    .intro-text {
+        font-size: clamp(1.2rem, 2.2vw, 1.3rem);
+        margin-bottom: 6vh;
+    }
+
+    .info-list {
+        margin-bottom: 7vh;
+    }
+
+    .info-list li {
+        font-size: clamp(1.15rem, 2vw, 1.2rem);
+        padding: 1.25rem 1.875rem 1.25rem 2.5rem;
+        margin-bottom: 2.75vh;
+    }
+
+    .info-list li:hover {
+        transform: translateX(-0.3rem);
+    }
+
+    .footer {
+        margin-top: 6vh;
+    }
+}
+
+/* Large Desktop Styles (1440px and up) */
+@media (min-width: 1440px) {
+    .container {
+        max-width: min(85%, 1000px);
+    }
+
+    .couple-names {
+        font-size: clamp(3rem, 3.5vw, 3.5rem);
+    }
+
+    .welcome-title {
+        font-size: clamp(3rem, 3.5vw, 3.5rem);
+    }
+}
+
+/* Print Styles */
+@media print {
+    body {
+        background: white;
+    }
+
+    .container {
+        max-width: 100%;
+    }
+
+    .info-list li {
+        page-break-inside: avoid;
+    }
+}
