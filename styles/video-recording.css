@@ -27,7 +27,7 @@
 
 .video-section-title {
     font-family: 'Liebling', sans-serif;
-    font-size: clamp(1.75rem, 5vw, 2.25rem);
+    font-size: clamp(1.57rem, 5vw, 2.25rem);
     font-weight: 300;
     color: var(--sage-green);
     margin-bottom: 1rem;
