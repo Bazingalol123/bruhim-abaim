@@ -35,6 +35,13 @@
             </div>
         </header>
 
+        <!-- Scroll Indicator -->
+        <div class="scroll-indicator" id="scrollIndicator">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 5L20 30M20 30L12 22M20 30L28 22" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+
         <!-- Hero Section -->
         <section class="hero">
             <div class="hero-image-container">
@@ -67,5 +74,34 @@
             </div>
         </footer>
     </div>
+
+    <script>
+        // Scroll indicator functionality
+        const scrollIndicator = document.getElementById('scrollIndicator');
+        let hasScrolled = false;
+
+        // Hide indicator on scroll
+        window.addEventListener('scroll', () => {
+            if (!hasScrolled && window.scrollY > 50) {
+                hasScrolled = true;
+                scrollIndicator.classList.add('hidden');
+            }
+        });
+
+        // Smooth scroll when clicking the indicator
+        scrollIndicator.addEventListener('click', () => {
+            window.scrollTo({
+                top: window.innerHeight * 0.8,
+                behavior: 'smooth'
+            });
+        });
+
+        // Auto-hide after 8 seconds if user hasn't scrolled
+        setTimeout(() => {
+            if (!hasScrolled) {
+                scrollIndicator.classList.add('hidden');
+            }
+        }, 8000);
+    </script>
 </body>
 </html>

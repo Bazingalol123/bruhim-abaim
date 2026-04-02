@@ -48,6 +48,48 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* Scroll Indicator */
+.scroll-indicator {
+    position: fixed;
+    bottom: 8vh;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    color: var(--sage-green);
+    cursor: pointer;
+    animation: bounce 2s ease-in-out infinite;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+    opacity: 1;
+    visibility: visible;
+}
+
+.scroll-indicator.hidden {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.scroll-indicator svg {
+    filter: drop-shadow(0 2px 4px rgba(107, 127, 92, 0.2));
+    transition: transform 0.3s ease;
+    position: relative;
+    bottom: 10rem;
+    background-color: white;
+    border-radius: 50%;
+}
+
+.scroll-indicator:hover svg {
+    transform: scale(1.1);
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateX(-50%) translateY(0);
+    }
+    50% {
+        transform: translateX(-50%) translateY(-15px);
+    }
+}
+
 /* Container */
 .container {
     max-width: 100%;
