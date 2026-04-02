@@ -3,14 +3,20 @@
  * Manages the admin panel for viewing uploaded wedding videos
  */
 
-import { storage, auth } from '../config/firebase-config.js';
+import { storage, auth, db } from '../config/firebase-config.js';
 import { requireAuth, signOutUser, onAuthStateChange } from '../auth/auth-manager.js';
-import { 
-    ref, 
-    listAll, 
-    getDownloadURL, 
-    getMetadata 
+import {
+    ref,
+    listAll,
+    getDownloadURL,
+    getMetadata
 } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js';
+import {
+    collection,
+    getDocs,
+    query,
+    orderBy
+} from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 
 // DOM Elements
 const userEmailElement = document.getElementById('userEmail');
@@ -112,62 +118,51 @@ async function handleLogout() {
 }
 
 /**
- * Load all videos from Firebase Storage
+ * Load all videos from Firestore
  */
 async function loadVideos() {
     try {
-        console.log('📥 Loading videos from Firebase Storage...');
+        console.log('📥 Loading videos from Firestore...');
         
         // Show loading state
         showState('loading');
 
-        // Reference to wedding-videos folder
-        const videosRef = ref(storage, 'wedding-videos');
+        // Query videoMetadata collection, ordered by timestamp (newest first)
+        const videosQuery = query(
+            collection(db, 'videoMetadata'),
+            orderBy('timestamp', 'desc')
+        );
 
-        // List all files in the folder
-        const result = await listAll(videosRef);
-        console.log(`Found ${result.items.length} videos`);
+        const querySnapshot = await getDocs(videosQuery);
+        console.log(`Found ${querySnapshot.size} videos`);
 
-        if (result.items.length === 0) {
+        if (querySnapshot.empty) {
             showState('empty');
             return;
         }
 
-        // Process each video file
-        const videoPromises = result.items.map(async (itemRef) => {
-            try {
-                // Get download URL
-                const downloadURL = await getDownloadURL(itemRef);
-                
-                // Get metadata (includes size, upload time, etc.)
-                const metadata = await getMetadata(itemRef);
-                
-                // Parse filename to extract guest name and timestamp
-                const videoInfo = parseVideoFilename(itemRef.name);
-                
-                return {
-                    name: itemRef.name,
-                    url: downloadURL,
-                    guestName: videoInfo.guestName,
-                    timestamp: videoInfo.timestamp,
-                    uploadDate: metadata.timeCreated,
-                    size: metadata.size,
-                    contentType: metadata.contentType
-                };
-            } catch (error) {
-                console.error(`❌ Error processing video ${itemRef.name}:`, error);
-                return null;
-            }
+        // Process each video document
+        videos = [];
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            
+            // Convert Firestore timestamp to Date
+            const uploadDate = data.timestamp?.toDate() || data.uploadedAt?.toDate() || new Date();
+            
+            videos.push({
+                id: doc.id,
+                name: `${data.guestName}.webm`,
+                url: data.videoUrl,
+                guestName: data.guestName || 'אורח',
+                uploadDate: uploadDate.toISOString(),
+                size: data.fileSize || 0,
+                contentType: 'video/webm',
+                duration: data.duration || 0,
+                deviceInfo: data.deviceInfo || {},
+                viewed: data.viewed || false,
+                starred: data.starred || false
+            });
         });
-
-        // Wait for all videos to be processed
-        const processedVideos = await Promise.all(videoPromises);
-        
-        // Filter out any null values (failed videos)
-        videos = processedVideos.filter(video => video !== null);
-        
-        // Sort videos by upload date (newest first)
-        videos.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
 
         console.log(`✅ Successfully loaded ${videos.length} videos`);
 
@@ -185,35 +180,6 @@ async function loadVideos() {
         errorMessage.textContent = `שגיאה: ${error.message}`;
         showState('error');
     }
-}
-
-/**
- * Parse video filename to extract guest name and timestamp
- * Expected format: {timestamp}_{guestName}.webm
- * Example: 1234567890_John_Doe.webm
- */
-function parseVideoFilename(filename) {
-    // Remove file extension
-    const nameWithoutExt = filename.replace(/\.(webm|mp4|mov)$/i, '');
-    
-    // Split by underscore
-    const parts = nameWithoutExt.split('_');
-    
-    if (parts.length < 2) {
-        return {
-            guestName: 'אורח',
-            timestamp: Date.now()
-        };
-    }
-    
-    // First part is timestamp, rest is guest name
-    const timestamp = parseInt(parts[0]) || Date.now();
-    const guestName = parts.slice(1).join(' ');
-    
-    return {
-        guestName: guestName || 'אורח',
-        timestamp: timestamp
-    };
 }
 
 /**
@@ -259,9 +225,12 @@ function createVideoCard(video, index) {
     // Format file size
     const sizeMB = (video.size / (1024 * 1024)).toFixed(1);
 
+    // Format video duration (from metadata, not upload time)
+    const formattedDuration = formatDuration(video.duration);
+
     card.innerHTML = `
         <div class="video-thumbnail">
-            <video class="video-preview" preload="metadata">
+            <video class="video-preview" preload="metadata" muted>
                 <source src="${video.url}#t=0.5" type="${video.contentType}">
             </video>
             <div class="video-overlay">
@@ -271,7 +240,7 @@ function createVideoCard(video, index) {
                     </svg>
                 </button>
             </div>
-            <div class="video-duration">${formattedTime}</div>
+            ${video.duration > 0 ? `<div class="video-duration">${formattedDuration}</div>` : ''}
         </div>
         <div class="video-info">
             <h3 class="video-guest-name">${escapeHtml(video.guestName)}</h3>
@@ -283,7 +252,7 @@ function createVideoCard(video, index) {
                         <line x1="8" y1="2" x2="8" y2="6"></line>
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
-                    ${formattedDate}
+                    ${formattedDate} ${formattedTime}
                 </span>
                 <span class="video-size">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -317,9 +286,14 @@ function createVideoCard(video, index) {
     // Add event listeners to buttons
     const playButton = card.querySelector('.play-button');
     const watchButton = card.querySelector('.btn-watch');
+    const videoPreview = card.querySelector('.video-preview');
 
     playButton.addEventListener('click', () => openVideoModal(index));
     watchButton.addEventListener('click', () => openVideoModal(index));
+    
+    // Make video thumbnail clickable
+    videoPreview.addEventListener('click', () => openVideoModal(index));
+    videoPreview.style.cursor = 'pointer';
 
     return card;
 }
@@ -387,6 +361,25 @@ function showState(state) {
         case 'videos':
             videosGrid.classList.remove('hidden');
             break;
+    }
+}
+
+/**
+ * Format duration in seconds to MM:SS or HH:MM:SS
+ */
+function formatDuration(seconds) {
+    if (!seconds || seconds <= 0) {
+        return '0:00';
+    }
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+        return `${minutes}:${secs.toString().padStart(2, '0')}`;
     }
 }
 

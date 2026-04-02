@@ -37,10 +37,12 @@ let app, storage, db, auth;
 try {
     app = initializeApp(firebaseConfig);
     storage = getStorage(app);
-    db = getFirestore(app);
+    // Use custom database ID "default" instead of the standard "(default)"
+    db = getFirestore(app, 'default');
     auth = getAuth(app);
     console.log('✅ Firebase initialized successfully');
     console.log('✅ Firebase Auth initialized');
+    console.log('✅ Using Firestore database: default');
 } catch (error) {
     console.error('❌ Firebase initialization failed:', error);
     console.error('Make sure you have replaced the placeholder values in firebase-config.js');

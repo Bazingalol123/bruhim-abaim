@@ -86,11 +86,22 @@ class VideoUploader {
                         resolve({
                             videoId: videoId,
                             videoUrl: downloadURL,
-                            documentId: docId
+                            documentId: docId,
+                            success: true
                         });
                     } catch (error) {
-                        console.error('Error completing upload:', error);
-                        reject(error);
+                        console.error('Error saving metadata:', error);
+                        // Storage upload succeeded but metadata save failed
+                        // Return partial success with error info
+                        this.currentUploadTask = null;
+                        resolve({
+                            videoId: videoId,
+                            videoUrl: downloadURL,
+                            documentId: null,
+                            success: false,
+                            partialSuccess: true,
+                            error: error.message
+                        });
                     }
                 }
             );

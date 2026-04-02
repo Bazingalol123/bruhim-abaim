@@ -242,21 +242,36 @@ class VideoUI {
                         status = 'כמעט מסיימים...';
                     } else if (progress < 100) {
                         status = 'משלים העלאה...';
+                    } else if (progress >= 100) {
+                        status = 'שומר פרטים...';
                     }
                     this.updateProgress(progress, status);
                 }
             );
 
-            console.log('✅ Upload successful:', result);
+            console.log('✅ Upload result:', result);
             
-            // Show completion status
-            this.updateProgress(100, 'העלאה הושלמה! 🎉');
-            
-            // Wait a moment before showing success
-            await new Promise(resolve => setTimeout(resolve, 800));
-            
-            // Show success
-            this.showSuccess();
+            // Check if upload was fully successful or partial
+            if (result.partialSuccess) {
+                // Storage succeeded but Firestore failed
+                console.warn('⚠️ Partial success - video uploaded but metadata not saved');
+                this.updateProgress(100, 'הוידאו הועלה בהצלחה! ✅');
+                
+                // Wait a moment before showing success
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Show success with a note
+                this.showSuccess(true);
+            } else {
+                // Full success
+                this.updateProgress(100, 'העלאה הושלמה! 🎉');
+                
+                // Wait a moment before showing success
+                await new Promise(resolve => setTimeout(resolve, 800));
+                
+                // Show success
+                this.showSuccess();
+            }
         } catch (error) {
             console.error('❌ Upload error:', error);
             
@@ -354,9 +369,20 @@ class VideoUI {
 
     /**
      * Show success message
+     * @param {boolean} partialSuccess - Whether it was a partial success (storage only)
      */
-    showSuccess() {
+    showSuccess(partialSuccess = false) {
+        if (partialSuccess) {
+            console.log('ℹ️ Showing success with partial upload note');
+        }
         this.showStep('success');
+        
+        // Hide upload progress
+        if (this.uploadProgress) {
+            setTimeout(() => {
+                this.uploadProgress.classList.add('hidden');
+            }, 500);
+        }
     }
 
     /**

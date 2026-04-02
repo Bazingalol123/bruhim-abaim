@@ -315,14 +315,36 @@ body {
     position: relative;
     width: 100%;
     aspect-ratio: 16 / 9;
-    background: var(--cream-dark);
+    background: linear-gradient(135deg, var(--cream-dark) 0%, var(--sage-green-light) 100%);
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-thumbnail::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>') center/48px no-repeat;
+    opacity: 0.2;
+    pointer-events: none;
 }
 
 .video-preview {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
+    background: var(--text-dark);
+}
+
+.video-preview::-webkit-media-controls {
+    display: none !important;
+}
+
+.video-preview::-webkit-media-controls-enclosure {
+    display: none !important;
 }
 
 .video-overlay {
