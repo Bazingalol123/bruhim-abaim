@@ -161,7 +161,7 @@ body {
     position: relative;
     padding: 1rem 1.25rem 1rem 2rem;
     margin-bottom: 2vh;
-    font-size: clamp(1, 2.5vw, 1.05rem);
+    font-size: clamp(1.2rem, 2.5vw, 1.05rem);
     line-height: 1.7;
     background: rgba(255, 255, 255, 0.4);
     border-right: 3px solid var(--sage-green);
@@ -178,7 +178,7 @@ body {
 .info-list li::before {
     content: "✦";
     position: absolute;
-    right: 0.5rem;
+    right: 0.2rem;
     top: 50%;
     transform: translateY(-50%);
     color: var(--sage-green);
