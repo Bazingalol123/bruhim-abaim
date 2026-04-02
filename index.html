@@ -67,6 +67,161 @@
             </ul>
         </main>
 
+        <!-- Video Recording Section -->
+        <section class="video-recording-section" id="videoRecordingSection">
+            <div class="video-recording-container">
+                
+                <!-- Section Header -->
+                <div class="video-section-header">
+                    <h2 class="video-section-title">הקליטו לנו ברכה!</h2>
+                    <p class="video-section-subtitle">
+                        נשמח לקבל ממכם ברכה מהלב ולשמור אותה לזכרון 💚
+                    </p>
+                </div>
+
+                <!-- Step 1: Name Input -->
+                <div class="video-step" id="nameInputStep" data-step="name">
+                    <div class="name-input-container">
+                        <label for="guestNameInput" class="form-label">
+                            השם שלכם
+                        </label>
+                        <input
+                            type="text"
+                            id="guestNameInput"
+                            class="form-input"
+                            placeholder="הכניסו את שמכם"
+                            maxlength="100"
+                            required
+                            dir="auto"
+                        />
+                        <button
+                            id="startRecordingBtn"
+                            class="btn btn-primary"
+                            disabled
+                        >
+                            התחילו להקליט
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Recording UI -->
+                <div class="video-step hidden" id="recordingStep" data-step="recording">
+                    
+                    <!-- Video Preview -->
+                    <div class="video-preview-container">
+                        <video
+                            id="videoPreview"
+                            class="video-preview"
+                            playsinline
+                            muted
+                            autoplay
+                        ></video>
+                        
+                        <!-- Recording indicator -->
+                        <div class="recording-indicator hidden" id="recordingIndicator">
+                            <span class="recording-dot"></span>
+                            <span class="recording-time" id="recordingTime">00:00</span>
+                        </div>
+                    </div>
+
+                    <!-- Recording Controls -->
+                    <div class="recording-controls">
+                        <button
+                            id="toggleRecordBtn"
+                            class="btn btn-record"
+                            aria-label="Start recording"
+                        >
+                            <svg class="icon-record" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="8" fill="currentColor"/>
+                            </svg>
+                            <span>התחל הקלטה</span>
+                        </button>
+
+                        <button
+                            id="stopRecordBtn"
+                            class="btn btn-stop hidden"
+                            aria-label="Stop recording"
+                        >
+                            <svg class="icon-stop" viewBox="0 0 24 24">
+                                <rect x="6" y="6" width="12" height="12" fill="currentColor"/>
+                            </svg>
+                            <span>עצור הקלטה</span>
+                        </button>
+
+                        <button
+                            id="cancelRecordBtn"
+                            class="btn btn-secondary"
+                        >
+                            ביטול
+                        </button>
+                    </div>
+
+                    <!-- Permissions Error -->
+                    <div class="error-message hidden" id="permissionsError">
+                        <p style="white-space: pre-line; line-height: 1.6;">
+                            לא ניתן לגשת למצלמה. אנא אפשרו גישה למצלמה ומיקרופון בהגדרות הדפדפן.
+                        </p>
+                        <button id="testPermissionsBtn" class="btn btn-secondary" style="margin-top: 1rem;">
+                            בדקו הרשאות שוב
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Review & Download -->
+                <div class="video-step hidden" id="reviewStep" data-step="review">
+                    
+                    <!-- Playback Preview -->
+                    <div class="video-preview-container">
+                        <video
+                            id="videoPlayback"
+                            class="video-preview"
+                            playsinline
+                            controls
+                        ></video>
+                    </div>
+
+                    <!-- Review Controls -->
+                    <div class="review-controls">
+                        <button id="downloadVideoBtn" class="btn btn-primary">
+                            הורידו את הברכה 💚
+                        </button>
+                        <button id="retakeVideoBtn" class="btn btn-secondary">
+                            הקליטו מחדש
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Success Message -->
+                <div class="video-step hidden" id="successStep" data-step="success">
+                    <div class="success-message">
+                        <svg class="icon-success" viewBox="0 0 24 24">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
+                        </svg>
+                        <h3>תודה רבה!</h3>
+                        <p>הברכה שלכם הורדה בהצלחה 💚</p>
+                        <button id="recordAnotherBtn" class="btn btn-secondary">
+                            הקליטו ברכה נוספת
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Error State -->
+                <div class="video-step hidden" id="errorStep" data-step="error">
+                    <div class="error-state">
+                        <svg class="icon-error" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
+                        </svg>
+                        <h3>משהו השתבש</h3>
+                        <p id="errorMessage">אנא נסו שוב מאוחר יותר.</p>
+                        <button id="tryAgainBtn" class="btn btn-primary">
+                            נסו שוב
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
         <!-- Footer -->
         <footer class="footer">
             <div class="floral-border">
@@ -103,5 +258,9 @@
             }
         }, 8000);
     </script>
+
+    <!-- Video Recording Scripts -->
+    <link rel="stylesheet" href="styles/video-recording.css">
+    <script type="module" src="js/video-recording-main.js"></script>
 </body>
 </html>
