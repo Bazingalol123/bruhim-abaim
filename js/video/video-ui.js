@@ -71,14 +71,6 @@ class VideoUI {
         // Error step
         this.errorMessage = document.getElementById('errorMessage');
         this.tryAgainBtn = document.getElementById('tryAgainBtn');
-
-        // DEBUG: Log which elements are null
-        console.log('🔍 DEBUG - Element initialization check:');
-        console.log('  uploadVideoBtn:', this.uploadVideoBtn ? '✅ Found' : '❌ NULL');
-        console.log('  downloadVideoBtn:', this.downloadVideoBtn ? '✅ Found' : '❌ NULL');
-        console.log('  uploadProgress:', this.uploadProgress ? '✅ Found' : '❌ NULL');
-        console.log('  progressBar:', this.progressBar ? '✅ Found' : '❌ NULL');
-        console.log('  progressText:', this.progressText ? '✅ Found' : '❌ NULL');
     }
 
     /**
