@@ -47,6 +47,10 @@
             <div class="hero-image-container">
                 <img src="images/couple.png" alt="אודליה ועומר" class="hero-image">
             </div>
+            <!-- Scroll to Recording Button -->
+            <button class="scroll-to-recording-btn" id="scrollToRecordingBtn">
+                🎥 התחילו לצלם חוויות
+            </button>
         </section>
 
         <!-- Main Content -->
@@ -59,13 +63,125 @@
             </p>
 
             <ul class="info-list">
-                <li>קוקטיילים מחכים לכם בבר בקבלת הפנים.</li>
+                <li>קוקטיילים מחכים לכם בבר בקבלת הפנים</li>
                 <li>העציצים על השולחנות באולם רק מחכים שתקחו אותם הביתה!</li>
-                <li>אתם יכולים לאכול מהתפריט הכל וכמהההה שבאלכם</li>
-                <li>המוזיקה חזקה? החדר השקט נמצא ממש ליד הרחבה (ויש בו גם שתייה חמה)</li>
+                <li>התפריט חופשי וללא הגבלה אפשר לאכול הכל!</li>
+                <li>המוזיקה חזקה? <br/> החדר השקט נמצא ממש ליד הרחבה (ויש בו גם שתייה חמה)</li>
                 <li>גלידה אמריקאית ואספרסו מחכים לכם בבר שליד הרחבה</li>
             </ul>
         </main>
+
+        <!-- Video Recording Section -->
+        <section class="video-recording-section" id="videoRecordingSection">
+            <div class="video-recording-container">
+                
+                <!-- Section Header -->
+                <div class="video-section-header">
+                    <h3 class="video-section-title">החתונה דרך העיניים שלכם!</h3>
+                    <p class="video-section-subtitle">
+                       צלמו לנו ריקודים, רגעים וחוויות שנוכל לצחוק עליהם אחר כך <br/> ולשמור לנו לזיכרון! 💚
+                    </p>
+                </div>
+
+                <!-- Step 1: Name Input -->
+                <div class="video-step" id="nameInputStep" data-step="name">
+                    <div class="name-input-container">
+                        
+                        <input
+                            type="text"
+                            id="guestNameInput"
+                            class="form-input"
+                            placeholder="הכניסו את שמכם"
+                            maxlength="100"
+                            required
+                            dir="auto"
+                        />
+                        <!-- Hidden file input for native camera -->
+                        <input
+                            type="file"
+                            id="videoFileInput"
+                            accept="video/*"
+                            capture="user"
+                            style="display: none;"
+                        />
+                        <button
+                            id="startRecordingBtn"
+                            class="btn btn-primary"
+                            disabled
+                        >
+                            הקליטו סרטון מהאירוע
+                        </button>
+                    </div>
+                </div>
+
+
+                <!-- Step 3: Review & Download -->
+                <div class="video-step hidden" id="reviewStep" data-step="review">
+                    
+                    <!-- Playback Preview -->
+                    <div class="video-preview-container">
+                        <video
+                            id="videoPlayback"
+                            class="video-preview"
+                            playsinline
+                            controls
+                        ></video>
+                    </div>
+
+                    <!-- Review Controls -->
+                    <div class="review-controls">
+                        <button id="uploadVideoBtn" class="btn btn-primary">
+                            העלו את הסרטון 💚
+                        </button>
+                        <button id="downloadVideoBtn" class="btn btn-primary">
+                            הורידו את הסרטון 💚
+                        </button>
+                        <button id="retakeVideoBtn" class="btn btn-secondary">
+                            הקליטו מחדש
+                        </button>
+                    </div>
+
+                    <!-- Upload Progress -->
+                    <div id="uploadProgress" class="upload-progress hidden">
+                        <div class="progress-container">
+                            <span id="progressText" class="progress-text">0%</span>
+                            <div class="progress-bar-wrapper">
+                                <div id="progressBar" class="progress-bar"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Success Message -->
+                <div class="video-step hidden" id="successStep" data-step="success">
+                    <div class="success-message">
+                        <svg class="icon-success" viewBox="0 0 24 24">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
+                        </svg>
+                        <h3>תודה רבה!</h3>
+                        <p>הסרטון שלכם נשלח בהצלחה 💚</p>
+                        <button id="recordAnotherBtn" class="btn btn-secondary">
+                            הקליטו סרטון נוסף
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Error State -->
+                <div class="video-step hidden" id="errorStep" data-step="error">
+                    <div class="error-state">
+                        <svg class="icon-error" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
+                        </svg>
+                        <h3>משהו השתבש</h3>
+                        <p id="errorMessage">אנא נסו שוב מאוחר יותר.</p>
+                        <button id="tryAgainBtn" class="btn btn-primary">
+                            נסו שוב
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
 
         <!-- Footer -->
         <footer class="footer">
@@ -102,6 +218,24 @@
                 scrollIndicator.classList.add('hidden');
             }
         }, 8000);
+
+        // Scroll to recording section button
+        const scrollToRecordingBtn = document.getElementById('scrollToRecordingBtn');
+        if (scrollToRecordingBtn) {
+            scrollToRecordingBtn.addEventListener('click', () => {
+                const recordingSection = document.getElementById('videoRecordingSection');
+                if (recordingSection) {
+                    recordingSection.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        }
     </script>
+
+    <!-- Video Recording Scripts -->
+    <link rel="stylesheet" href="styles/video-recording.css">
+    <script type="module" src="js/video-recording-main.js"></script>
 </body>
 </html>

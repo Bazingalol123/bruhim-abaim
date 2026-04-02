@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>כניסה לפאנל ניהול | Admin Login</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="images/logo.png">
+    
+    <!-- Base Styles -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Admin Login Styles -->
+    <link rel="stylesheet" href="styles/admin-login.css">
+</head>
+<body>
+    <div class="admin-login-container">
+        <!-- Logo Section -->
+        <div class="login-header">
+            <div class="login-logo">
+                <img src="images/logo.png" alt="Odelya & Omer" class="logo">
+            </div>
+            <h1 class="login-title">פאנל ניהול</h1>
+            <p class="login-subtitle">Admin Panel</p>
+        </div>
+
+        <!-- Login Form -->
+        <div class="login-card">
+            <form id="loginForm" class="login-form">
+                <!-- Email Field -->
+                <div class="form-group">
+                    <label for="emailInput" class="form-label">
+                        אימייל
+                    </label>
+                    <input
+                        type="email"
+                        id="emailInput"
+                        class="form-input"
+                        placeholder="הכניסו את כתובת האימייל"
+                        required
+                        autocomplete="email"
+                        dir="ltr"
+                    />
+                </div>
+
+                <!-- Password Field -->
+                <div class="form-group">
+                    <label for="passwordInput" class="form-label">
+                        סיסמה
+                    </label>
+                    <input
+                        type="password"
+                        id="passwordInput"
+                        class="form-input"
+                        placeholder="הכניסו את הסיסמה"
+                        required
+                        autocomplete="current-password"
+                        dir="ltr"
+                    />
+                </div>
+
+                <!-- Error Message Display -->
+                <div id="errorMessage" class="error-message hidden"></div>
+
+                <!-- Submit Button -->
+                <button
+                    type="submit"
+                    id="loginButton"
+                    class="btn-login"
+                >
+                    <span class="button-text">התחברו</span>
+                    <span class="button-loader hidden">
+                        <svg class="spinner" viewBox="0 0 50 50">
+                            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+                        </svg>
+                    </span>
+                </button>
+            </form>
+
+            <!-- Back to Home Link -->
+            <div class="login-footer">
+                <a href="index.html" class="back-link">
+                    חזרו לדף הראשי
+                </a>
+            </div>
+        </div>
+
+        <!-- Decorative Element -->
+        <div class="login-decoration">
+            <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M50 10 L55 30 L75 30 L60 42 L65 62 L50 50 L35 62 L40 42 L25 30 L45 30 Z" fill="var(--sage-green)" opacity="0.1"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Authentication Script -->
+    <script type="module">
+        import { signIn, redirectIfAuthenticated } from './js/auth/auth-manager.js';
+
+        // DOM Elements
+        const loginForm = document.getElementById('loginForm');
+        const emailInput = document.getElementById('emailInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginButton = document.getElementById('loginButton');
+        const buttonText = loginButton.querySelector('.button-text');
+        const buttonLoader = loginButton.querySelector('.button-loader');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // Initialize: Check if user is already authenticated
+        async function init() {
+            console.log('🚀 Initializing login page...');
+            
+            // Wait for auth initialization and redirect if already authenticated
+            const wasRedirected = await redirectIfAuthenticated();
+            
+            if (wasRedirected) {
+                console.log('⚠️ User already authenticated, waiting for redirect...');
+                return; // Stop initialization, redirect in progress
+            }
+            
+            console.log('✅ Login page ready');
+        }
+
+        // Handle form submission
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+
+            // Validate inputs
+            if (!email || !password) {
+                showError('אנא מלאו את כל השדות');
+                return;
+            }
+
+            // Show loading state
+            setLoading(true);
+            hideError();
+
+            // Attempt sign in
+            const result = await signIn(email, password);
+
+            if (result.success) {
+                console.log('✅ Login successful');
+                
+                // Show success message
+                showError('התחברתם בהצלחה!', 'success');
+                
+                // Redirect to admin panel after short delay
+                setTimeout(() => {
+                    window.location.href = 'admin-panel.html';
+                }, 1500);
+            } else {
+                // Show error message
+                showError(result.error);
+                setLoading(false);
+            }
+        });
+
+        /**
+         * Set loading state on button
+         */
+        function setLoading(isLoading) {
+            if (isLoading) {
+                loginButton.disabled = true;
+                buttonText.classList.add('hidden');
+                buttonLoader.classList.remove('hidden');
+            } else {
+                loginButton.disabled = false;
+                buttonText.classList.remove('hidden');
+                buttonLoader.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Show error or success message
+         */
+        function showError(message, type = 'error') {
+            errorMessage.textContent = message;
+            errorMessage.className = `error-message ${type}`;
+            errorMessage.classList.remove('hidden');
+        }
+
+        /**
+         * Hide error message
+         */
+        function hideError() {
+            errorMessage.classList.add('hidden');
+        }
+
+        // Clear error on input
+        emailInput.addEventListener('input', hideError);
+        passwordInput.addEventListener('input', hideError);
+        
+        // Initialize on page load
+        init();
+    </script>
+</body>
+</html>
