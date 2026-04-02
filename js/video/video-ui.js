@@ -71,6 +71,14 @@ class VideoUI {
         // Error step
         this.errorMessage = document.getElementById('errorMessage');
         this.tryAgainBtn = document.getElementById('tryAgainBtn');
+
+        // DEBUG: Log which elements are null
+        console.log('🔍 DEBUG - Element initialization check:');
+        console.log('  uploadVideoBtn:', this.uploadVideoBtn ? '✅ Found' : '❌ NULL');
+        console.log('  downloadVideoBtn:', this.downloadVideoBtn ? '✅ Found' : '❌ NULL');
+        console.log('  uploadProgress:', this.uploadProgress ? '✅ Found' : '❌ NULL');
+        console.log('  progressBar:', this.progressBar ? '✅ Found' : '❌ NULL');
+        console.log('  progressText:', this.progressText ? '✅ Found' : '❌ NULL');
     }
 
     /**
@@ -98,10 +106,12 @@ class VideoUI {
             this.handleFileSelection(e);
         });
 
-        // Upload video button
-        this.uploadVideoBtn.addEventListener('click', () => {
-            this.handleUpload();
-        });
+        // Upload video button (optional - only if upload UI exists)
+        if (this.uploadVideoBtn) {
+            this.uploadVideoBtn.addEventListener('click', () => {
+                this.handleUpload();
+            });
+        }
 
         // Download video button (optional, for offline save)
         if (this.downloadVideoBtn) {
@@ -111,19 +121,25 @@ class VideoUI {
         }
 
         // Retake video button
-        this.retakeVideoBtn.addEventListener('click', () => {
-            this.handleRetake();
-        });
+        if (this.retakeVideoBtn) {
+            this.retakeVideoBtn.addEventListener('click', () => {
+                this.handleRetake();
+            });
+        }
 
         // Record another button
-        this.recordAnotherBtn.addEventListener('click', () => {
-            this.reset();
-        });
+        if (this.recordAnotherBtn) {
+            this.recordAnotherBtn.addEventListener('click', () => {
+                this.reset();
+            });
+        }
 
         // Try again button
-        this.tryAgainBtn.addEventListener('click', () => {
-            this.reset();
-        });
+        if (this.tryAgainBtn) {
+            this.tryAgainBtn.addEventListener('click', () => {
+                this.reset();
+            });
+        }
     }
 
     /**
