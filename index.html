@@ -94,78 +94,24 @@
                             required
                             dir="auto"
                         />
+                        <!-- Hidden file input for native camera -->
+                        <input
+                            type="file"
+                            id="videoFileInput"
+                            accept="video/*"
+                            capture="user"
+                            style="display: none;"
+                        />
                         <button
                             id="startRecordingBtn"
                             class="btn btn-primary"
                             disabled
                         >
-                            התחילו להקליט
+                            הקליטו ברכה
                         </button>
                     </div>
                 </div>
 
-                <!-- Step 2: Recording UI -->
-                <div class="video-step hidden" id="recordingStep" data-step="recording">
-                    
-                    <!-- Video Preview -->
-                    <div class="video-preview-container">
-                        <video
-                            id="videoPreview"
-                            class="video-preview"
-                            playsinline
-                            muted
-                            autoplay
-                        ></video>
-                        
-                        <!-- Recording indicator -->
-                        <div class="recording-indicator hidden" id="recordingIndicator">
-                            <span class="recording-dot"></span>
-                            <span class="recording-time" id="recordingTime">00:00</span>
-                        </div>
-                    </div>
-
-                    <!-- Recording Controls -->
-                    <div class="recording-controls">
-                        <button
-                            id="toggleRecordBtn"
-                            class="btn btn-record"
-                            aria-label="Start recording"
-                        >
-                            <svg class="icon-record" viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="8" fill="currentColor"/>
-                            </svg>
-                            <span>התחל הקלטה</span>
-                        </button>
-
-                        <button
-                            id="stopRecordBtn"
-                            class="btn btn-stop hidden"
-                            aria-label="Stop recording"
-                        >
-                            <svg class="icon-stop" viewBox="0 0 24 24">
-                                <rect x="6" y="6" width="12" height="12" fill="currentColor"/>
-                            </svg>
-                            <span>עצור הקלטה</span>
-                        </button>
-
-                        <button
-                            id="cancelRecordBtn"
-                            class="btn btn-secondary"
-                        >
-                            ביטול
-                        </button>
-                    </div>
-
-                    <!-- Permissions Error -->
-                    <div class="error-message hidden" id="permissionsError">
-                        <p style="white-space: pre-line; line-height: 1.6;">
-                            לא ניתן לגשת למצלמה. אנא אפשרו גישה למצלמה ומיקרופון בהגדרות הדפדפן.
-                        </p>
-                        <button id="testPermissionsBtn" class="btn btn-secondary" style="margin-top: 1rem;">
-                            בדקו הרשאות שוב
-                        </button>
-                    </div>
-                </div>
 
                 <!-- Step 3: Review & Download -->
                 <div class="video-step hidden" id="reviewStep" data-step="review">

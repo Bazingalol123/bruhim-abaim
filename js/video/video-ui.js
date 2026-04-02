@@ -6,14 +6,11 @@
 import VideoRecorder from './video-recorder.js';
 import VideoUploader from './video-uploader.js';
 import {
-    formatTime,
     validateGuestName,
     getErrorMessage,
     checkBrowserSupport,
     downloadVideo,
-    generateFilename,
-    runPreflightChecks,
-    logDiagnostics
+    generateFilename
 } from './video-utils.js';
 
 class VideoUI {
@@ -49,7 +46,6 @@ class VideoUI {
         // Steps
         this.steps = {
             name: document.getElementById('nameInputStep'),
-            recording: document.getElementById('recordingStep'),
             review: document.getElementById('reviewStep'),
             success: document.getElementById('successStep'),
             error: document.getElementById('errorStep')
@@ -58,16 +54,7 @@ class VideoUI {
         // Name input step
         this.guestNameInput = document.getElementById('guestNameInput');
         this.startRecordingBtn = document.getElementById('startRecordingBtn');
-
-        // Recording step
-        this.videoPreview = document.getElementById('videoPreview');
-        this.recordingIndicator = document.getElementById('recordingIndicator');
-        this.recordingTime = document.getElementById('recordingTime');
-        this.toggleRecordBtn = document.getElementById('toggleRecordBtn');
-        this.stopRecordBtn = document.getElementById('stopRecordBtn');
-        this.cancelRecordBtn = document.getElementById('cancelRecordBtn');
-        this.permissionsError = document.getElementById('permissionsError');
-        this.testPermissionsBtn = document.getElementById('testPermissionsBtn');
+        this.videoFileInput = document.getElementById('videoFileInput');
 
         // Review step
         this.videoPlayback = document.getElementById('videoPlayback');
@@ -101,24 +88,14 @@ class VideoUI {
             }
         });
 
-        // Start recording button
+        // Start recording button - trigger file input
         this.startRecordingBtn.addEventListener('click', () => {
             this.handleStartRecording();
         });
 
-        // Toggle record button (start recording)
-        this.toggleRecordBtn.addEventListener('click', () => {
-            this.handleToggleRecording();
-        });
-
-        // Stop recording button
-        this.stopRecordBtn.addEventListener('click', () => {
-            this.handleStopRecording();
-        });
-
-        // Cancel recording button
-        this.cancelRecordBtn.addEventListener('click', () => {
-            this.handleCancel();
+        // File input change - handle video selection
+        this.videoFileInput.addEventListener('change', (e) => {
+            this.handleFileSelection(e);
         });
 
         // Upload video button
@@ -147,39 +124,6 @@ class VideoUI {
         this.tryAgainBtn.addEventListener('click', () => {
             this.reset();
         });
-        
-        // Test permissions button
-        this.testPermissionsBtn.addEventListener('click', () => {
-            this.handleTestPermissions();
-        });
-    }
-    
-    /**
-     * Handle test permissions - retry camera access
-     */
-    async handleTestPermissions() {
-        console.log('🔄 Retrying camera access...');
-        this.permissionsError.classList.add('hidden');
-        
-        try {
-            // Request camera and microphone access again
-            const stream = await this.recorder.initializeMedia();
-            
-            // Show video preview
-            this.videoPreview.srcObject = stream;
-            await this.videoPreview.play();
-
-            console.log('✅ Camera access granted on retry');
-        } catch (error) {
-            console.error('❌ Camera access still denied:', error);
-            
-            // Show detailed error message
-            const errorMessage = getErrorMessage(error);
-            this.showPermissionsError(errorMessage);
-            
-            // Log diagnostics for debugging
-            await logDiagnostics(error);
-        }
     }
 
     /**
@@ -191,7 +135,7 @@ class VideoUI {
     }
 
     /**
-     * Handle start recording flow
+     * Handle start recording flow - trigger native camera
      */
     async handleStartRecording() {
         this.guestName = this.guestNameInput.value.trim();
@@ -200,109 +144,43 @@ class VideoUI {
             return;
         }
 
-        // Show recording step
-        this.showStep('recording');
-        this.permissionsError.classList.add('hidden');
-
-        try {
-            // Run pre-flight checks
-            console.log('🔍 Running pre-flight checks...');
-            const preflightResults = await runPreflightChecks();
-            
-            if (!preflightResults.passed) {
-                console.error('❌ Pre-flight checks failed:', preflightResults.errors);
-                throw new Error(preflightResults.errors.join('\n'));
-            }
-            
-            if (preflightResults.warnings.length > 0) {
-                console.warn('⚠️ Pre-flight warnings:', preflightResults.warnings);
-            }
-
-            // Request camera and microphone access
-            console.log('📹 Requesting camera access...');
-            const stream = await this.recorder.initializeMedia();
-            
-            // Show video preview
-            this.videoPreview.srcObject = stream;
-            await this.videoPreview.play();
-
-            console.log('✅ Camera initialized successfully');
-        } catch (error) {
-            console.error('❌ Error initializing camera:', error);
-            
-            // Show detailed error message
-            const errorMessage = getErrorMessage(error);
-            this.showPermissionsError(errorMessage);
-            
-            // Log diagnostics for debugging
-            await logDiagnostics(error);
-        }
+        // Trigger the file input which will open native camera
+        console.log('📹 Opening native camera...');
+        this.videoFileInput.click();
     }
-    
+
     /**
-     * Show permissions error with formatted message
-     * @param {string} message - Error message (may contain newlines)
+     * Handle file selection from native camera
+     * @param {Event} event - File input change event
      */
-    showPermissionsError(message) {
-        this.permissionsError.classList.remove('hidden');
+    async handleFileSelection(event) {
+        const file = event.target.files[0];
         
-        // Format message with line breaks
-        const paragraphElement = this.permissionsError.querySelector('p');
-        paragraphElement.innerHTML = message.split('\n').map(line =>
-            line.trim() ? `<span style="display: block; margin: 0.5em 0;">${line}</span>` : ''
-        ).join('');
-    }
-
-    /**
-     * Handle toggle recording (start)
-     */
-    async handleToggleRecording() {
-        try {
-            await this.recorder.startRecording(
-                null,
-                (duration) => this.updateRecordingTimer(duration)
-            );
-
-            // Update UI
-            this.toggleRecordBtn.classList.add('hidden');
-            this.stopRecordBtn.classList.remove('hidden');
-            this.recordingIndicator.classList.remove('hidden');
-            this.cancelRecordBtn.disabled = true;
-
-            console.log('Recording started');
-        } catch (error) {
-            console.error('Error starting recording:', error);
-            this.showError(getErrorMessage(error));
+        if (!file) {
+            console.log('No file selected');
+            return;
         }
-    }
 
-    /**
-     * Handle stop recording
-     */
-    async handleStopRecording() {
         try {
-            this.recordedBlob = await this.recorder.stopRecording();
+            console.log('📹 Processing selected video file...');
             
-            console.log('Recording stopped, blob size:', this.recordedBlob.size);
+            // Process the video file
+            const blob = await this.recorder.handleFileSelection(file);
+            this.recordedBlob = blob;
+            
+            console.log('✅ Video file processed, blob size:', blob.size);
 
-            // Clean up camera
-            this.recorder.cleanup();
-
-            // Show review step
+            // Show review step with the video
             this.showReview();
         } catch (error) {
-            console.error('Error stopping recording:', error);
+            console.error('❌ Error processing video file:', error);
             this.showError(getErrorMessage(error));
+        } finally {
+            // Reset file input so the same file can be selected again
+            event.target.value = '';
         }
     }
 
-    /**
-     * Handle cancel recording
-     */
-    handleCancel() {
-        this.recorder.cleanup();
-        this.showStep('name');
-    }
 
     /**
      * Handle upload video to Firebase
@@ -419,14 +297,6 @@ class VideoUI {
     }
 
     /**
-     * Update recording timer display
-     * @param {number} duration - Duration in seconds
-     */
-    updateRecordingTimer(duration) {
-        this.recordingTime.textContent = formatTime(duration);
-    }
-
-    /**
      * Update upload progress bar and text
      * @param {number} progress - Progress percentage (0-100)
      */
@@ -451,7 +321,7 @@ class VideoUI {
 
     /**
      * Navigate to specific step
-     * @param {string} step - Step name (name, recording, review, success, error)
+     * @param {string} step - Step name (name, review, success, error)
      */
     showStep(step) {
         // Hide all steps
@@ -465,15 +335,6 @@ class VideoUI {
         if (this.steps[step]) {
             this.steps[step].classList.remove('hidden');
             this.currentStep = step;
-        }
-
-        // Reset recording UI if going back to recording step
-        if (step === 'recording') {
-            this.toggleRecordBtn.classList.remove('hidden');
-            this.stopRecordBtn.classList.add('hidden');
-            this.recordingIndicator.classList.add('hidden');
-            this.cancelRecordBtn.disabled = false;
-            this.recordingTime.textContent = '00:00';
         }
     }
 
@@ -515,9 +376,6 @@ class VideoUI {
         }
 
         // Clean up video sources
-        if (this.videoPreview.srcObject) {
-            this.videoPreview.srcObject = null;
-        }
         if (this.videoPlayback.src) {
             URL.revokeObjectURL(this.videoPlayback.src);
             this.videoPlayback.src = '';
