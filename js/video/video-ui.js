@@ -64,6 +64,7 @@ class VideoUI {
         this.uploadProgress = document.getElementById('uploadProgress');
         this.progressBar = document.getElementById('progressBar');
         this.progressText = document.getElementById('progressText');
+        this.progressStatus = null; // Will be created dynamically
 
         // Success step
         this.recordAnotherBtn = document.getElementById('recordAnotherBtn');
@@ -215,9 +216,10 @@ class VideoUI {
                 this.downloadVideoBtn.disabled = true;
             }
 
-            // Show progress bar
+            // Show progress bar with initial status
+            this.uploadProgress.style.display = 'block';
             this.uploadProgress.classList.remove('hidden');
-            this.updateProgress(0);
+            this.updateProgress(0, 'מתחיל העלאה...');
 
             // Prepare metadata
             const metadata = {
@@ -230,10 +232,28 @@ class VideoUI {
             const result = await this.uploader.uploadVideo(
                 this.recordedBlob,
                 metadata,
-                (progress) => this.updateProgress(progress)
+                (progress) => {
+                    let status = 'מעלה את הוידאו...';
+                    if (progress < 25) {
+                        status = 'מתחיל העלאה...';
+                    } else if (progress < 50) {
+                        status = 'מעלה את הוידאו...';
+                    } else if (progress < 75) {
+                        status = 'כמעט מסיימים...';
+                    } else if (progress < 100) {
+                        status = 'משלים העלאה...';
+                    }
+                    this.updateProgress(progress, status);
+                }
             );
 
             console.log('✅ Upload successful:', result);
+            
+            // Show completion status
+            this.updateProgress(100, 'העלאה הושלמה! 🎉');
+            
+            // Wait a moment before showing success
+            await new Promise(resolve => setTimeout(resolve, 800));
             
             // Show success
             this.showSuccess();
@@ -307,8 +327,9 @@ class VideoUI {
     /**
      * Update upload progress bar and text
      * @param {number} progress - Progress percentage (0-100)
+     * @param {string} status - Status message to display
      */
-    updateProgress(progress) {
+    updateProgress(progress, status = '') {
         const progressPercent = Math.round(progress);
         
         if (this.progressBar) {
@@ -316,7 +337,18 @@ class VideoUI {
         }
         
         if (this.progressText) {
-            this.progressText.textContent = `מעלה... ${progressPercent}%`;
+            this.progressText.textContent = `${progressPercent}%`;
+        }
+        
+        // Create or update status element
+        if (!this.progressStatus) {
+            this.progressStatus = document.createElement('span');
+            this.progressStatus.className = 'progress-status';
+            this.uploadProgress.appendChild(this.progressStatus);
+        }
+        
+        if (this.progressStatus && status) {
+            this.progressStatus.textContent = status;
         }
     }
 

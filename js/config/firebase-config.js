@@ -18,6 +18,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
 import { getStorage } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js';
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+import { getAuth } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
 
 // TODO: Replace with your Firebase project credentials
 // Get these from: Firebase Console > Project Settings > Your apps > SDK setup and configuration
@@ -31,16 +32,18 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-let app, storage, db;
+let app, storage, db, auth;
 
 try {
     app = initializeApp(firebaseConfig);
     storage = getStorage(app);
     db = getFirestore(app);
+    auth = getAuth(app);
     console.log('✅ Firebase initialized successfully');
+    console.log('✅ Firebase Auth initialized');
 } catch (error) {
     console.error('❌ Firebase initialization failed:', error);
     console.error('Make sure you have replaced the placeholder values in firebase-config.js');
 }
 
-export { app, storage, db };
+export { app, storage, db, auth };
