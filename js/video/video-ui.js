@@ -51,6 +51,9 @@ class VideoUI {
             error: document.getElementById('errorStep')
         };
 
+        // Section header
+        this.sectionHeader = document.querySelector('.video-section-header');
+
         // Name input step
         this.guestNameInput = document.getElementById('guestNameInput');
         this.startRecordingBtn = document.getElementById('startRecordingBtn');
@@ -377,6 +380,11 @@ class VideoUI {
         }
         this.showStep('success');
         
+        // Hide section header when showing success
+        if (this.sectionHeader) {
+            this.sectionHeader.classList.add('hidden');
+        }
+        
         // Hide upload progress
         if (this.uploadProgress) {
             setTimeout(() => {
@@ -439,6 +447,11 @@ class VideoUI {
         // Hide progress bar
         if (this.uploadProgress) {
             this.uploadProgress.classList.add('hidden');
+        }
+
+        // Show section header again
+        if (this.sectionHeader) {
+            this.sectionHeader.classList.remove('hidden');
         }
 
         // Clean up video sources

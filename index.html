@@ -47,6 +47,10 @@
             <div class="hero-image-container">
                 <img src="images/couple.png" alt="אודליה ועומר" class="hero-image">
             </div>
+            <!-- Scroll to Recording Button -->
+            <button class="scroll-to-recording-btn" id="scrollToRecordingBtn">
+                🎥 הקליטו לנו ברכה
+            </button>
         </section>
 
         <!-- Main Content -->
@@ -59,7 +63,7 @@
             </p>
 
             <ul class="info-list">
-                <li>קוקטיילים מחכים לכם בבר בקבלת הפנים.</li>
+                <li>קוקטיילים מחכים לכם בבר בקבלת הפנים</li>
                 <li>העציצים על השולחנות באולם רק מחכים שתקחו אותם הביתה!</li>
                 <li>אתם יכולים לאכול מהתפריט הכל וכמהההה שבאלכם</li>
                 <li>המוזיקה חזקה? החדר השקט נמצא ממש ליד הרחבה (ויש בו גם שתייה חמה)</li>
@@ -216,6 +220,20 @@
                 scrollIndicator.classList.add('hidden');
             }
         }, 8000);
+
+        // Scroll to recording section button
+        const scrollToRecordingBtn = document.getElementById('scrollToRecordingBtn');
+        if (scrollToRecordingBtn) {
+            scrollToRecordingBtn.addEventListener('click', () => {
+                const recordingSection = document.getElementById('videoRecordingSection');
+                if (recordingSection) {
+                    recordingSection.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        }
     </script>
 
     <!-- Video Recording Scripts -->

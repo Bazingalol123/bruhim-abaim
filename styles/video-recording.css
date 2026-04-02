@@ -21,6 +21,10 @@
     margin-bottom: 3rem;
 }
 
+.video-section-header.hidden {
+    display: none !important;
+}
+
 .video-section-title {
     font-family: 'Liebling', sans-serif;
     font-size: clamp(1.75rem, 5vw, 2.25rem);
