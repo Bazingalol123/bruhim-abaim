@@ -19,6 +19,9 @@
 
     <!-- JSZip Library for multi-file ZIP download -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <!-- Google Identity Services (for Google Drive upload) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <div class="admin-container">
@@ -164,6 +167,14 @@
                     <span id="selectionCount" class="selection-count">0 נבחרו</span>
                 </div>
                 <div class="selection-actions">
+                    <button id="uploadDriveBtn" class="btn-upload-drive" disabled>
+                        <span class="drive-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                <path d="M7.71 3.5L1.15 15l4.58 7.5h13.54l4.58-7.5L17.29 3.5H7.71zm-.57 1h9.72l5.29 9.5H2.85l5.29-9.5zM5.29 15h13.42l-3.42 5.5H8.71L5.29 15z" fill="currentColor"/>
+                            </svg>
+                        </span>
+                        העלה ל-Drive
+                    </button>
                     <button id="downloadZipBtn" class="btn-download-zip" disabled>
                         <span class="zip-icon">📦</span>
                         הורד כ-ZIP

@@ -3,6 +3,12 @@
  * Manages the admin panel for viewing uploaded wedding media (videos & images)
  */
 
+// Google Drive API configuration
+// Replace with your OAuth Client ID from Google Cloud Console
+// See docs/google-drive-setup.md for setup instructions
+const GOOGLE_DRIVE_CLIENT_ID = '1047795100077-auful7oeq5ut0o53sk3icmein8kd64s6.apps.googleusercontent.com'; // TODO: Replace with actual Client ID
+const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+
 import { storage, auth, db } from '../config/firebase-config.js';
 import { requireAuth, signOutUser, onAuthStateChange } from '../auth/auth-manager.js';
 import {
@@ -52,6 +58,8 @@ let mediaItems = [];
 let currentUser = null;
 let currentFilter = 'all';
 let selectedItems = new Set(); // Track selected item indices
+let googleAccessToken = null; // Google OAuth access token
+let tokenClient = null; // Google Identity Services token client
 
 /**
  * Initialize the admin panel
@@ -90,6 +98,9 @@ async function init() {
 
     // Initialize QR code section
     initQRSection();
+
+    // Initialize Google Drive integration
+    initGoogleDrive();
 }
 
 /**
@@ -120,6 +131,7 @@ function setupEventListeners() {
     // Selection controls
     document.getElementById('selectAllBtn')?.addEventListener('click', selectAllVisible);
     document.getElementById('downloadZipBtn')?.addEventListener('click', downloadSelectedAsZip);
+    document.getElementById('uploadDriveBtn')?.addEventListener('click', handleDriveUpload);
     document.getElementById('clearSelectionBtn')?.addEventListener('click', clearSelection);
 }
 
@@ -666,14 +678,18 @@ function updateSelectionUI() {
         }
     });
     
+    const uploadDriveBtn = document.getElementById('uploadDriveBtn');
+
     // Show/hide selection bar
     if (selectedItems.size > 0) {
         selectionBar.classList.remove('hidden');
         selectionCount.textContent = `${selectedItems.size} נבחרו`;
         downloadZipBtn.disabled = false;
+        if (uploadDriveBtn) uploadDriveBtn.disabled = false;
     } else {
         selectionBar.classList.add('hidden');
         downloadZipBtn.disabled = true;
+        if (uploadDriveBtn) uploadDriveBtn.disabled = true;
     }
     
     // Update "select all" button text
@@ -786,6 +802,213 @@ async function downloadSelectedAsZip() {
         alert('שגיאה ביצירת קובץ ZIP. נסו שנית.');
     } finally {
         document.body.removeChild(overlay);
+    }
+}
+
+// ── Google Drive Integration ─────────────────────────────────────────
+
+/**
+ * Initialize Google Identity Services token client
+ */
+function initGoogleDrive() {
+    // Check if GIS library is loaded
+    if (typeof google === 'undefined' || !google.accounts) {
+        console.warn('Google Identity Services not loaded yet');
+        // Retry after a short delay
+        setTimeout(initGoogleDrive, 1000);
+        return;
+    }
+    
+    tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_DRIVE_CLIENT_ID,
+        scope: GOOGLE_DRIVE_SCOPE,
+        callback: (tokenResponse) => {
+            if (tokenResponse.error) {
+                console.error('Google OAuth error:', tokenResponse.error);
+                return;
+            }
+            googleAccessToken = tokenResponse.access_token;
+            // Proceed with upload after getting token
+            uploadSelectedToDrive();
+        },
+    });
+}
+
+/**
+ * Handle Drive upload button click
+ */
+function handleDriveUpload() {
+    if (selectedItems.size === 0) return;
+    
+    if (GOOGLE_DRIVE_CLIENT_ID === 'YOUR_CLIENT_ID_HERE') {
+        alert('Google Drive Client ID not configured.\nSee docs/google-drive-setup.md for setup instructions.');
+        return;
+    }
+    
+    if (!tokenClient) {
+        alert('Google Identity Services not loaded. Please refresh the page.');
+        return;
+    }
+    
+    // If we already have a valid token, upload directly
+    if (googleAccessToken) {
+        uploadSelectedToDrive();
+    } else {
+        // Request access token - this will trigger the OAuth popup
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+    }
+}
+
+/**
+ * Create a folder in Google Drive (returns folder ID)
+ */
+async function createDriveFolder(folderName) {
+    const metadata = {
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder'
+    };
+    
+    const response = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${googleAccessToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(metadata)
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Failed to create folder: ${response.status}`);
+    }
+    
+    const folder = await response.json();
+    return folder.id;
+}
+
+/**
+ * Upload a single file to Google Drive
+ */
+async function uploadFileToDrive(blob, fileName, folderId, mimeType) {
+    const metadata = {
+        name: fileName,
+        parents: [folderId]
+    };
+    
+    // Use multipart upload for files
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', blob);
+    
+    const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${googleAccessToken}`
+        },
+        body: form
+    });
+    
+    if (!response.ok) {
+        const errText = await response.text();
+        // If unauthorized, clear token so next attempt re-authenticates
+        if (response.status === 401) {
+            googleAccessToken = null;
+        }
+        throw new Error(`Upload failed (${response.status}): ${errText}`);
+    }
+    
+    return await response.json();
+}
+
+/**
+ * Upload all selected items to Google Drive
+ */
+async function uploadSelectedToDrive() {
+    if (selectedItems.size === 0) return;
+    
+    // Create progress overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'zip-progress-overlay';
+    overlay.innerHTML = `
+        <div class="zip-progress-card">
+            <h3>☁️ מעלה ל-Google Drive...</h3>
+            <div class="zip-progress-bar">
+                <div class="zip-progress-fill" id="driveProgressFill"></div>
+            </div>
+            <p class="zip-progress-text" id="driveProgressText">יוצר תיקייה...</p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    const progressFill = document.getElementById('driveProgressFill');
+    const progressText = document.getElementById('driveProgressText');
+    
+    try {
+        // Create a dated folder
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const folderName = `Wedding Media ${dateStr}`;
+        const folderId = await createDriveFolder(folderName);
+        
+        const selectedArray = Array.from(selectedItems);
+        let completed = 0;
+        let failed = 0;
+        
+        for (const index of selectedArray) {
+            const item = mediaItems[index];
+            if (!item || !item.url) continue;
+            
+            const extension = item.mediaType === 'image' ? 'jpg' : 'webm';
+            const fileName = `${item.guestName || 'guest'}_${index}.${extension}`;
+            const mimeType = item.mediaType === 'image' ? 'image/jpeg' : 'video/webm';
+            
+            progressText.textContent = `מעלה ${completed + 1} מתוך ${selectedArray.length}: ${fileName}`;
+            
+            try {
+                const response = await fetch(item.url);
+                const blob = await response.blob();
+                await uploadFileToDrive(blob, fileName, folderId, mimeType);
+            } catch (uploadErr) {
+                console.warn(`Failed to upload ${fileName}:`, uploadErr);
+                failed++;
+                // If token expired, stop and re-auth
+                if (!googleAccessToken) {
+                    document.body.removeChild(overlay);
+                    alert('ההרשאה פגה. אנא נסו שנית.');
+                    return;
+                }
+            }
+            
+            completed++;
+            const percent = Math.round((completed / selectedArray.length) * 100);
+            progressFill.style.width = `${percent}%`;
+        }
+        
+        // Show completion message
+        if (failed === 0) {
+            progressText.textContent = `✅ ${completed} קבצים הועלו בהצלחה!`;
+        } else {
+            progressText.textContent = `✅ ${completed - failed} הועלו, ❌ ${failed} נכשלו`;
+        }
+        progressFill.style.width = '100%';
+        progressFill.style.background = failed === 0 ? 'var(--success)' : 'var(--error)';
+        
+        // Auto-close after 2 seconds
+        setTimeout(() => {
+            if (overlay.parentNode) {
+                document.body.removeChild(overlay);
+            }
+            clearSelection();
+        }, 2500);
+        
+    } catch (err) {
+        console.error('Drive upload failed:', err);
+        document.body.removeChild(overlay);
+        
+        if (err.message.includes('401')) {
+            googleAccessToken = null;
+            alert('ההרשאה פגה. אנא נסו שנית.');
+        } else {
+            alert('שגיאה בהעלאה ל-Google Drive. נסו שנית.');
+        }
     }
 }
 

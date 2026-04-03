@@ -1029,6 +1029,36 @@ body {
     gap: 0.75rem;
 }
 
+.btn-upload-drive {
+    background: #4285F4;
+    color: white;
+    border: none;
+    padding: 0.5rem 1.25rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.btn-upload-drive:hover:not(:disabled) {
+    background: #3367D6;
+    transform: scale(1.02);
+}
+
+.btn-upload-drive:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.drive-icon {
+    display: flex;
+    align-items: center;
+}
+
 .btn-download-zip {
     background: white;
     color: var(--sage-green-dark);
