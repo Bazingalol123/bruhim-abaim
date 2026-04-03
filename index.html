@@ -95,22 +95,64 @@
                             maxlength="100"
                             required
                             dir="auto"
+                            aria-label="שם האורח"
                         />
-                        <!-- Hidden file input for native camera -->
+                        <!-- Hidden file inputs for native camera -->
                         <input
                             type="file"
                             id="videoFileInput"
                             accept="video/*"
-                            capture="user"
-                            style="display: none;"
+                            capture="environment"
+                            class="sr-only-input"
+                            aria-label="צלמו סרטון מהמכשיר"
                         />
-                        <button
-                            id="startRecordingBtn"
-                            class="btn btn-primary"
-                            disabled
-                        >
-                            הקליטו סרטון מהאירוע
-                        </button>
+                        <input
+                            type="file"
+                            id="imageFileInput"
+                            accept="image/*"
+                            capture="environment"
+                            class="sr-only-input"
+                            aria-label="צלמו תמונה מהמכשיר"
+                        />
+                        <!-- Hidden file inputs for gallery selection (no capture attribute) -->
+                        <input type="file" id="videoGalleryInput" accept="video/*" class="sr-only-input">
+                        <input type="file" id="imageGalleryInput" accept="image/*" class="sr-only-input">
+                        <!-- Media selection buttons -->
+                        <div class="media-buttons-container">
+                            <p class="media-section-label">📷 צלמו תמונה או סרטון</p>
+                            <div class="media-buttons-row">
+                                <button id="startImageBtn" class="btn-media-select btn-image" disabled>
+                                    <span class="btn-icon">📸</span>
+                                    <span class="btn-text">צלמו תמונה</span>
+                                </button>
+                                <button id="startRecordingBtn" class="btn-media-select btn-video" disabled>
+                                    <span class="btn-icon">🎥</span>
+                                    <span class="btn-text">צלמו סרטון</span>
+                                </button>
+                            </div>
+                            
+                            <div class="media-divider">
+                                <span class="divider-line"></span>
+                                <span class="divider-text">או שתבחרו אותם מהגלריה</span>
+                                <span class="divider-line"></span>
+                            </div>
+                            
+                            <div class="media-buttons-row">
+                                <button id="galleryImageBtn" class="btn-media-select btn-gallery btn-gallery-image" disabled>
+                                    <span class="btn-icon">🖼️</span>
+                                    <span class="btn-text">תמונה מהגלריה</span>
+                                </button>
+                                <button id="galleryVideoBtn" class="btn-media-select btn-gallery btn-gallery-video" disabled>
+                                    <span class="btn-icon">📁</span>
+                                    <span class="btn-text">סרטון מהגלריה</span>
+                                </button>
+                            </div>
+                            <!-- Direct mode continue button (shown only when ?mode=photo or ?mode=video) -->
+                            <button id="directModeContinueBtn" class="btn-media-select btn-image direct-mode-continue-btn" style="display: none;" disabled>
+                                <span class="btn-icon">📷</span>
+                                <span class="btn-text">המשיכו</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -118,7 +160,7 @@
                 <!-- Step 3: Review & Download -->
                 <div class="video-step hidden" id="reviewStep" data-step="review">
                     
-                    <!-- Playback Preview -->
+                    <!-- Media Preview Container -->
                     <div class="video-preview-container">
                         <video
                             id="videoPlayback"
@@ -126,6 +168,11 @@
                             playsinline
                             controls
                         ></video>
+                        <img
+                            id="imagePreview"
+                            class="media-preview-image hidden"
+                            alt="תצוגה מקדימה של התמונה"
+                        />
                     </div>
 
                     <!-- Review Controls -->
@@ -137,7 +184,7 @@
                             הורידו את הסרטון 💚
                         </button>
                         <button id="retakeVideoBtn" class="btn btn-secondary">
-                            הקליטו מחדש
+                            צלמו שוב 🎥
                         </button>
                     </div>
 
@@ -159,9 +206,9 @@
                             <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
                         </svg>
                         <h3>תודה רבה!</h3>
-                        <p>הסרטון שלכם נשלח בהצלחה 💚</p>
+                        <p id="successText">הסרטון שלכם נשלח בהצלחה 💚</p>
                         <button id="recordAnotherBtn" class="btn btn-secondary">
-                            הקליטו סרטון נוסף
+                            צלמו עוד
                         </button>
                     </div>
                 </div>
