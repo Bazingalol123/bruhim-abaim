@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>אודליה ועומר 💍 צלמו תמונה</title>
+    <link rel="icon" type="image/png" href="images/logo.png">
+    <style>
+        :root {
+            --primary: #6b7b5e;
+            --secondary: #a8b89c;
+            --light: #f5f2ec;
+            --text: #4a5943;
+            --error: #d9534f;
+            --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font); background: var(--light); color: var(--text); min-height: 100dvh; display: flex; flex-direction: column; align-items: center; }
+        .header { text-align: center; padding: 1.5rem 1rem 0.5rem; }
+        .header h1 { font-size: 1.6rem; font-weight: 400; color: var(--primary); }
+        .header p { font-size: 0.9rem; color: var(--secondary); margin-top: 0.25rem; }
+        .card { background: #fff; border-radius: 0.75rem; box-shadow: 0 2px 12px rgba(107,123,94,.12); width: 92%; max-width: 440px; padding: 2rem 1.5rem; margin: 1rem auto; text-align: center; }
+        .step { display: none; }
+        .step.active { display: block; }
+        label { display: block; font-size: 1rem; margin-bottom: 0.5rem; }
+        input[type="text"] { width: 100%; padding: 0.8rem; font-size: 1rem; font-family: var(--font); border: 2px solid var(--secondary); border-radius: 0.4rem; text-align: center; background: #fff; color: var(--text); }
+        input[type="text"]:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(107,123,94,.15); }
+        .sr-only-input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; opacity: 0; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; padding: 0.8rem 1.8rem; border: none; border-radius: 50px; font-family: var(--font); font-size: 1.05rem; cursor: pointer; transition: background .2s, transform .15s; width: 100%; max-width: 280px; }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover:not(:disabled) { background: #5a6d4d; transform: translateY(-1px); }
+        .btn-secondary { background: #fff; color: var(--text); border: 2px solid var(--secondary); }
+        .btn-secondary:hover:not(:disabled) { border-color: var(--primary); }
+        .btn-error { background: var(--error); color: #fff; }
+        .buttons-row { display: flex; gap: 0.75rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
+        .buttons-row .btn { flex: 1; min-width: 120px; }
+        .preview-container { width: 100%; max-width: 400px; margin: 0 auto 1rem; border-radius: 0.5rem; overflow: hidden; background: #000; }
+        .preview-container video, .preview-container img { width: 100%; display: block; max-height: 55vh; object-fit: contain; }
+        .progress-wrap { margin-top: 1.25rem; }
+        .progress-bar-bg { width: 100%; height: 1.5rem; background: rgba(107,123,94,.15); border-radius: 1rem; overflow: hidden; }
+        .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), #7a9668); border-radius: 1rem; transition: width .3s; }
+        .progress-text { font-size: 0.95rem; margin-bottom: 0.4rem; }
+        .success-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+        .error-box { background: #f8d7da; color: #721c24; padding: 0.8rem 1rem; border-radius: 0.4rem; margin-bottom: 1rem; font-size: 0.95rem; line-height: 1.5; white-space: pre-line; }
+        h2 { font-size: 1.3rem; font-weight: 400; color: var(--primary); margin-bottom: 0.75rem; }
+        p.sub { font-size: 0.95rem; line-height: 1.5; margin-bottom: 1rem; color: var(--text); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>אודליה ועומר 💍</h1>
+    <p>צלמו לנו ברכה!</p>
+</div>
+
+<div class="card">
+    <!-- Step 1: Name + capture buttons -->
+    <div class="step active" id="stepName">
+        <label for="nameInput">מה השם שלכם?</label>
+        <input type="text" id="nameInput" placeholder="הכניסו את שמכם" maxlength="100" dir="auto" autocomplete="name">
+
+        <!-- Hidden file inputs (sr-only for iOS) -->
+        <input type="file" id="photoInput" accept="image/*" capture="environment" class="sr-only-input">
+        <input type="file" id="videoInput" accept="video/*" capture="environment" class="sr-only-input">
+
+        <div class="buttons-row" id="captureButtons">
+            <!-- Populated by JS based on ?mode param -->
+        </div>
+    </div>
+
+    <!-- Step 2: Review -->
+    <div class="step" id="stepReview">
+        <div class="preview-container">
+            <video id="vidPreview" playsinline controls style="display:none"></video>
+            <img id="imgPreview" alt="תצוגה מקדימה" style="display:none">
+        </div>
+        <div class="buttons-row">
+            <button class="btn btn-primary" id="btnUpload">העלו 💚</button>
+            <button class="btn btn-secondary" id="btnDownload">הורידו ⬇️</button>
+            <button class="btn btn-secondary" id="btnRetake">צלמו שוב 🔄</button>
+        </div>
+        <div class="progress-wrap" id="progressWrap" style="display:none">
+            <div class="progress-text" id="progressText">מעלה… 0%</div>
+            <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+        </div>
+    </div>
+
+    <!-- Step 3: Success -->
+    <div class="step" id="stepSuccess">
+        <div class="success-icon">✨</div>
+        <h2>!הברכה שלכם נשמרה בהצלחה</h2>
+        <p class="sub">תודה רבה! 💚</p>
+        <button class="btn btn-primary" id="btnAnother">📷 צלמו עוד ברכה</button>
+    </div>
+
+    <!-- Step 4: Error -->
+    <div class="step" id="stepError">
+        <div class="success-icon">😔</div>
+        <h2>משהו השתבש</h2>
+        <div class="error-box" id="errorMsg">אנא נסו שוב מאוחר יותר.</div>
+        <button class="btn btn-error" id="btnRetry">נסו שוב 🔄</button>
+    </div>
+</div>
+
+<!-- Firebase compat SDK (async) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+(function() {
+    'use strict';
+
+    // ── Firebase Init ────────────────────────────────────────────────
+    const firebaseConfig = {
+        apiKey: "AIzaSyDF23YiwlXBU2BAP5CoxNFM6lDAaNCUaJA",
+        authDomain: "wedding-prog.firebaseapp.com",
+        projectId: "wedding-prog",
+        storageBucket: "wedding-prog.firebasestorage.app",
+        messagingSenderId: "1047795100077",
+        appId: "1:1047795100077:web:30e6172ea60c7db2065924"
+    };
+
+    const app = firebase.initializeApp(firebaseConfig);
+    const storage = firebase.storage();
+    const db = firebase.firestore();
+
+    // ── Constants ────────────────────────────────────────────────────
+    const MAX_VIDEO_DURATION = 45;
+    const IMAGE_MAX_DIM = 4096;
+    const IMAGE_QUALITY = 0.92;
+    const MAX_IMAGE_SIZE = 15 * 1024 * 1024;
+    const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+
+    // ── DOM refs ─────────────────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+    const nameInput      = $('nameInput');
+    const photoInput     = $('photoInput');
+    const videoInput     = $('videoInput');
+    const captureButtons = $('captureButtons');
+    const stepName       = $('stepName');
+    const stepReview     = $('stepReview');
+    const stepSuccess    = $('stepSuccess');
+    const stepError      = $('stepError');
+    const vidPreview     = $('vidPreview');
+    const imgPreview     = $('imgPreview');
+    const btnUpload      = $('btnUpload');
+    const btnDownload    = $('btnDownload');
+    const btnRetake      = $('btnRetake');
+    const btnAnother     = $('btnAnother');
+    const btnRetry       = $('btnRetry');
+    const progressWrap   = $('progressWrap');
+    const progressBar    = $('progressBar');
+    const progressText   = $('progressText');
+    const errorMsg       = $('errorMsg');
+
+    // ── State ────────────────────────────────────────────────────────
+    let currentBlob = null;       // processed blob ready for upload
+    let currentType = null;       // 'image' | 'video'
+    let videoDuration = 0;
+    let imageMetadata = {};       // { width, height, originalSize }
+    let uploadTask = null;
+
+    // ── Parse URL mode ───────────────────────────────────────────────
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode'); // 'photo' | 'video' | null
+
+    // ── Build capture buttons ────────────────────────────────────────
+    function buildButtons() {
+        captureButtons.innerHTML = '';
+        if (!mode || mode === 'photo') {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-primary';
+            btn.disabled = true;
+            btn.id = 'btnPhoto';
+            btn.innerHTML = '<span>📸</span><span>צלמו תמונה</span>';
+            btn.addEventListener('click', function() { photoInput.click(); });
+            captureButtons.appendChild(btn);
+        }
+        if (!mode || mode === 'video') {
+            const btn = document.createElement('button');
+            btn.className = mode ? 'btn btn-primary' : 'btn btn-secondary';
+            btn.disabled = true;
+            btn.id = 'btnVideo';
+            btn.innerHTML = '<span>🎥</span><span>צלמו סרטון</span>';
+            btn.addEventListener('click', function() { videoInput.click(); });
+            captureButtons.appendChild(btn);
+        }
+    }
+    buildButtons();
+
+    // ── Name validation → enable/disable buttons ─────────────────────
+    function updateButtons() {
+        const valid = nameInput.value.trim().length > 0;
+        captureButtons.querySelectorAll('.btn').forEach(b => b.disabled = !valid);
+    }
+    nameInput.addEventListener('input', updateButtons);
+
+    // ── Step navigation ──────────────────────────────────────────────
+    function showStep(step) {
+        [stepName, stepReview, stepSuccess, stepError].forEach(s => s.classList.remove('active'));
+        step.classList.add('active');
+    }
+
+    // ── Utility: UUID ────────────────────────────────────────────────
+    function uuid() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    }
+
+    // ── Utility: detect device ───────────────────────────────────────
+    function detectDevice() {
+        var ua = navigator.userAgent;
+        return {
+            isMobile: /iPhone|iPad|iPod|Android/i.test(ua),
+            isIOS: /iPhone|iPad|iPod/i.test(ua),
+            isSafari: /Safari/i.test(ua) && !/Chrome/i.test(ua),
+            userAgent: ua,
+            platform: navigator.platform
+        };
+    }
+
+    // ── Utility: promise with timeout ─────────────────────────────────
+    function withTimeout(promise, timeoutMs) {
+        return Promise.race([
+            promise.then(function(val) { return { value: val, timedOut: false }; }),
+            new Promise(function(resolve) {
+                setTimeout(function() { resolve({ value: null, timedOut: true }); }, timeoutMs);
+            })
+        ]);
+    }
+
+    // ── Image: get dimensions ────────────────────────────────────────
+    function getImageDimensions(file) {
+        return new Promise(function(resolve, reject) {
+            var url = URL.createObjectURL(file);
+            var img = new Image();
+            img.onload = function() {
+                URL.revokeObjectURL(url);
+                resolve({ width: img.naturalWidth, height: img.naturalHeight });
+            };
+            img.onerror = function() {
+                URL.revokeObjectURL(url);
+                reject(new Error('Failed to load image'));
+            };
+            img.src = url;
+        });
+    }
+
+    // ── Image: compress ──────────────────────────────────────────────
+    async function compressImage(file) {
+        var dims = await getImageDimensions(file);
+        var tw = dims.width, th = dims.height;
+        if (tw > IMAGE_MAX_DIM || th > IMAGE_MAX_DIM) {
+            if (tw > th) { th = Math.round(th * (IMAGE_MAX_DIM / tw)); tw = IMAGE_MAX_DIM; }
+            else { tw = Math.round(tw * (IMAGE_MAX_DIM / th)); th = IMAGE_MAX_DIM; }
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = tw; canvas.height = th;
+        var ctx = canvas.getContext('2d');
+        var bmp = await createImageBitmap(file);
+        ctx.drawImage(bmp, 0, 0, tw, th);
+        bmp.close();
+        return new Promise(function(resolve, reject) {
+            canvas.toBlob(function(blob) {
+                blob ? resolve(blob) : reject(new Error('Canvas toBlob returned null'));
+            }, 'image/jpeg', IMAGE_QUALITY);
+        });
+    }
+
+    // ── Image: validate ──────────────────────────────────────────────
+    function validateImage(file) {
+        if (!file) return 'invalid-image-type';
+        if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) return 'invalid-image-type';
+        if (file.size > MAX_IMAGE_SIZE) return 'image-too-large';
+        return null;
+    }
+
+    // ── Video: get duration ──────────────────────────────────────────
+    function getVideoDuration(file) {
+        return new Promise(function(resolve) {
+            var v = document.createElement('video');
+            v.preload = 'metadata';
+            v.onloadedmetadata = function() { URL.revokeObjectURL(v.src); resolve(Math.floor(v.duration)); };
+            v.onerror = function() { URL.revokeObjectURL(v.src); resolve(0); };
+            v.src = URL.createObjectURL(file);
+        });
+    }
+
+    // ── Handle photo file ────────────────────────────────────────────
+    photoInput.addEventListener('change', async function() {
+        var file = photoInput.files[0];
+        if (!file) return;
+        try {
+            var err = validateImage(file);
+            if (err) { showError(errorMsgText(err)); return; }
+            var originalSize = file.size;
+            var dims = await getImageDimensions(file);
+            var compressed = await compressImage(file);
+            var finalDims = await getImageDimensions(compressed);
+            currentBlob = compressed;
+            currentType = 'image';
+            imageMetadata = { width: finalDims.width, height: finalDims.height, originalSize: originalSize };
+            imgPreview.src = URL.createObjectURL(compressed);
+            imgPreview.style.display = 'block';
+            vidPreview.style.display = 'none';
+            showStep(stepReview);
+        } catch (e) {
+            showError(errorMsgText(e.type || 'compression-failed'));
+        }
+        photoInput.value = '';
+    });
+
+    // ── Handle video file ────────────────────────────────────────────
+    videoInput.addEventListener('change', async function() {
+        var file = videoInput.files[0];
+        if (!file) return;
+        try {
+            if (!file.type.startsWith('video/')) { showError('סוג הקובץ לא נתמך'); return; }
+            var dur = await getVideoDuration(file);
+            if (dur > MAX_VIDEO_DURATION) { showError('הסרטון ארוך מדי. אנא צלמו סרטון קצר יותר (עד 45 שניות)'); return; }
+            videoDuration = dur;
+            currentBlob = new Blob([file], { type: file.type });
+            currentType = 'video';
+            vidPreview.src = URL.createObjectURL(currentBlob);
+            vidPreview.style.display = 'block';
+            imgPreview.style.display = 'none';
+            showStep(stepReview);
+        } catch (e) {
+            showError('שגיאה בעיבוד הסרטון. אנא נסו שוב.');
+        }
+        videoInput.value = '';
+    });
+
+    // ── Upload ───────────────────────────────────────────────────────
+    btnUpload.addEventListener('click', async function() {
+        if (!currentBlob) return;
+        btnUpload.disabled = true;
+        btnDownload.disabled = true;
+        btnRetake.disabled = true;
+        progressWrap.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressText.textContent = 'מעלה… 0%';
+
+        try {
+            var guestName = nameInput.value.trim();
+            var id = uuid();
+            var device = detectDevice();
+            var storagePath, contentType, docData;
+
+            if (currentType === 'image') {
+                storagePath = 'wedding-images/' + id + '.jpg';
+                contentType = 'image/jpeg';
+            } else {
+                storagePath = 'wedding-videos/' + id + '.webm';
+                contentType = currentBlob.type;
+            }
+
+            console.log('[Upload] Starting Storage upload:', storagePath);
+
+            var storageRef = storage.ref(storagePath);
+            uploadTask = storageRef.put(currentBlob, {
+                contentType: contentType,
+                customMetadata: { guestName: guestName, uploadedAt: new Date().toISOString() }
+            });
+
+            uploadTask.on('state_changed',
+                function(snap) {
+                    var pct = (snap.bytesTransferred / snap.totalBytes) * 100;
+                    progressBar.style.width = pct + '%';
+                    progressText.textContent = 'מעלה… ' + Math.round(pct) + '%';
+                },
+                function(error) {
+                    console.error('[Upload] Storage upload error:', error);
+                    uploadTask = null;
+                    showError(handleUploadError(error));
+                },
+                async function() {
+                    console.log('[Upload] Storage upload complete (100%). Getting download URL...');
+                    try {
+                        // Wrap getDownloadURL with timeout — ad blockers can block this too
+                        var urlResult = await withTimeout(
+                            uploadTask.snapshot.ref.getDownloadURL(), 8000
+                        );
+
+                        var downloadURL;
+                        if (urlResult.timedOut) {
+                            // Don't return early! Construct URL from storage path so Firestore doc still gets created
+                            console.warn('[Upload] getDownloadURL timed out after 8s — constructing URL from storage path');
+                            downloadURL = 'https://firebasestorage.googleapis.com/v0/b/'
+                                + firebaseConfig.storageBucket + '/o/'
+                                + encodeURIComponent(storagePath) + '?alt=media';
+                            console.log('[Upload] Constructed fallback URL:', downloadURL);
+                        } else {
+                            downloadURL = urlResult.value;
+                        }
+                        console.log('[Upload] Using download URL:', downloadURL);
+
+                        if (currentType === 'image') {
+                            docData = {
+                                guestName: guestName,
+                                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                                mediaType: 'image',
+                                mediaUrl: downloadURL,
+                                videoUrl: downloadURL,
+                                imageUrl: downloadURL,
+                                width: imageMetadata.width || 0,
+                                height: imageMetadata.height || 0,
+                                fileSize: currentBlob.size,
+                                originalFileSize: imageMetadata.originalSize || 0,
+                                deviceInfo: {
+                                    userAgent: device.userAgent,
+                                    platform: device.platform,
+                                    isMobile: device.isMobile,
+                                    isIOS: device.isIOS,
+                                    isSafari: device.isSafari
+                                },
+                                uploadComplete: true,
+                                viewed: false,
+                                starred: false,
+                                uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                            };
+                        } else {
+                            docData = {
+                                guestName: guestName,
+                                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                                mediaType: 'video',
+                                mediaUrl: downloadURL,
+                                videoUrl: downloadURL,
+                                duration: videoDuration,
+                                fileSize: currentBlob.size,
+                                deviceInfo: {
+                                    userAgent: device.userAgent,
+                                    platform: device.platform,
+                                    isMobile: device.isMobile,
+                                    isIOS: device.isIOS,
+                                    isSafari: device.isSafari
+                                },
+                                uploadComplete: true,
+                                viewed: false,
+                                starred: false,
+                                uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                            };
+                        }
+
+                        console.log('[Upload] Saving metadata to Firestore...');
+
+                        // Try Firestore SDK write with retries, then REST API fallback
+                        var firestoreSaved = false;
+                        var maxRetries = 3;
+
+                        for (var attempt = 1; attempt <= maxRetries && !firestoreSaved; attempt++) {
+                            try {
+                                console.log('[Upload] Firestore write attempt ' + attempt + '/' + maxRetries);
+                                var writeResult = await withTimeout(
+                                    db.collection('videoMetadata').add(docData), 8000
+                                );
+                                if (writeResult.timedOut) {
+                                    console.warn('[Upload] Firestore write attempt ' + attempt + ' timed out after 8s');
+                                } else {
+                                    console.log('[Upload] Firestore metadata saved successfully (attempt ' + attempt + ')');
+                                    firestoreSaved = true;
+                                }
+                            } catch (retryErr) {
+                                console.warn('[Upload] Firestore write attempt ' + attempt + ' failed:', retryErr.message);
+                            }
+                        }
+
+                        // Fallback: use Firestore REST API if SDK writes all failed
+                        if (!firestoreSaved) {
+                            console.warn('[Upload] All SDK writes failed. Trying REST API fallback...');
+                            try {
+                                var restDocData = {
+                                    fields: {
+                                        guestName: { stringValue: docData.guestName },
+                                        mediaType: { stringValue: docData.mediaType },
+                                        mediaUrl: { stringValue: docData.mediaUrl || '' },
+                                        fileSize: { integerValue: String(docData.fileSize || 0) },
+                                        uploadComplete: { booleanValue: true },
+                                        viewed: { booleanValue: false },
+                                        starred: { booleanValue: false },
+                                        timestamp: { timestampValue: new Date().toISOString() },
+                                        uploadedAt: { timestampValue: new Date().toISOString() },
+                                        updatedAt: { timestampValue: new Date().toISOString() }
+                                    }
+                                };
+                                // Add URL fields based on media type
+                                if (docData.videoUrl) restDocData.fields.videoUrl = { stringValue: docData.videoUrl };
+                                if (docData.imageUrl) restDocData.fields.imageUrl = { stringValue: docData.imageUrl };
+                                if (docData.width !== undefined) restDocData.fields.width = { integerValue: String(docData.width) };
+                                if (docData.height !== undefined) restDocData.fields.height = { integerValue: String(docData.height) };
+                                if (docData.duration !== undefined) restDocData.fields.duration = { integerValue: String(docData.duration) };
+
+                                var restResponse = await fetch(
+                                    'https://firestore.googleapis.com/v1/projects/' + firebaseConfig.projectId
+                                    + '/databases/(default)/documents/videoMetadata',
+                                    {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(restDocData)
+                                    }
+                                );
+                                if (restResponse.ok) {
+                                    console.log('[Upload] Firestore REST API fallback succeeded!');
+                                    firestoreSaved = true;
+                                } else {
+                                    console.error('[Upload] REST API fallback failed:', restResponse.status, await restResponse.text());
+                                }
+                            } catch (restErr) {
+                                console.error('[Upload] REST API fallback error:', restErr);
+                            }
+                        }
+
+                        if (!firestoreSaved) {
+                            console.error('[Upload] WARNING: File uploaded to Storage but metadata could NOT be saved to Firestore');
+                        }
+
+                        uploadTask = null;
+                        console.log('[Upload] Showing success screen');
+                        showStep(stepSuccess);
+                    } catch (e) {
+                        console.error('[Upload] Error in post-upload processing:', e);
+                        // Storage upload already succeeded — show success rather than error
+                        uploadTask = null;
+                        console.log('[Upload] Showing success screen despite error (file is in Storage)');
+                        showStep(stepSuccess);
+                    }
+                }
+            );
+        } catch (e) {
+            showError('שגיאה בהעלאה: ' + e.message);
+        }
+    });
+
+    // ── Download ─────────────────────────────────────────────────────
+    btnDownload.addEventListener('click', function() {
+        if (!currentBlob) return;
+        var ext = currentType === 'image' ? '.jpg' : '.webm';
+        var name = 'ברכה_' + nameInput.value.trim().replace(/\s+/g, '_') + ext;
+        var url = URL.createObjectURL(currentBlob);
+        var a = document.createElement('a');
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click();
+        setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+    });
+
+    // ── Retake ───────────────────────────────────────────────────────
+    btnRetake.addEventListener('click', function() { resetToCapture(); });
+
+    // ── Another ──────────────────────────────────────────────────────
+    btnAnother.addEventListener('click', function() { resetToCapture(); });
+
+    // ── Retry ────────────────────────────────────────────────────────
+    btnRetry.addEventListener('click', function() { resetToCapture(); });
+
+    // ── Reset ────────────────────────────────────────────────────────
+    function resetToCapture() {
+        if (uploadTask) { uploadTask.cancel(); uploadTask = null; }
+        currentBlob = null; currentType = null; videoDuration = 0; imageMetadata = {};
+        vidPreview.src = ''; imgPreview.src = '';
+        progressWrap.style.display = 'none';
+        btnUpload.disabled = false; btnDownload.disabled = false; btnRetake.disabled = false;
+        showStep(stepName);
+    }
+
+    // ── Show error step ──────────────────────────────────────────────
+    function showError(msg) {
+        errorMsg.textContent = msg;
+        btnUpload.disabled = false; btnDownload.disabled = false; btnRetake.disabled = false;
+        progressWrap.style.display = 'none';
+        showStep(stepError);
+    }
+
+    // ── Error message mapping ────────────────────────────────────────
+    function errorMsgText(type) {
+        var map = {
+            'image-too-large': 'התמונה גדולה מדי (עד 15MB). אנא נסו תמונה קטנה יותר.',
+            'invalid-image-type': 'סוג הקובץ לא נתמך. אנא צלמו תמונה בפורמט רגיל.',
+            'compression-failed': 'לא הצלחנו לעבד את התמונה. אנא נסו שוב.',
+            'video-too-long': 'הסרטון ארוך מדי. אנא צלמו סרטון קצר יותר (עד 45 שניות).'
+        };
+        return map[type] || 'אירעה שגיאה. אנא נסו שוב.';
+    }
+
+    // ── Firebase upload error mapping ────────────────────────────────
+    function handleUploadError(error) {
+        var map = {
+            'storage/unauthorized': 'אין הרשאה להעלות קבצים.',
+            'storage/canceled': 'ההעלאה בוטלה.',
+            'storage/quota-exceeded': 'אין מספיק מקום באחסון.',
+            'storage/retry-limit-exceeded': 'יותר מדי ניסיונות. אנא המתינו מעט ונסו שוב.',
+            'storage/invalid-checksum': 'הקובץ נפגם במהלך ההעלאה. אנא נסו שוב.'
+        };
+        return map[error.code] || 'שגיאה בהעלאת הקובץ. אנא בדקו את החיבור לאינטרנט ונסו שוב.';
+    }
+
+})();
+</script>
+</body>
+</html>

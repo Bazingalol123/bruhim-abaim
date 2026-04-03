@@ -1,6 +1,6 @@
 /**
- * Video Uploader Class
- * Handles uploading videos to Firebase Storage and saving metadata to Firestore
+ * Media Uploader Class
+ * Handles uploading videos and images to Firebase Storage and saving metadata to Firestore
  */
 
 import { storage, db } from '../config/firebase-config.js';
@@ -78,7 +78,7 @@ class VideoUploader {
                         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
                         console.log('✅ Upload complete, URL:', downloadURL);
 
-                        // Save metadata to Firestore
+                        // Save metadata to Firestore (with mediaType for forward compat)
                         const docId = await this.saveMetadata(videoId, downloadURL, metadata, videoBlob.size);
                         
                         this.currentUploadTask = null;
@@ -124,6 +124,8 @@ class VideoUploader {
                 // Required fields
                 guestName: metadata.guestName,
                 timestamp: serverTimestamp(),
+                mediaType: 'video',
+                mediaUrl: videoUrl,
                 videoUrl: videoUrl,
                 duration: metadata.duration || 0,
                 fileSize: fileSize,
@@ -158,6 +160,140 @@ class VideoUploader {
     }
 
     /**
+     * Upload an image blob to Firebase Storage and save metadata
+     * @param {Blob} imageBlob - Compressed image blob (JPEG)
+     * @param {Object} metadata - Image metadata (guestName, width, height, originalFileSize)
+     * @param {Function} progressCallback - Progress update callback (0-100)
+     * @returns {Promise<Object>} Upload result with image URL and document ID
+     */
+    async uploadImage(imageBlob, metadata, progressCallback = null) {
+        if (!storage || !db) {
+            throw new Error('Firebase not initialized. Please configure firebase-config.js');
+        }
+
+        const imageId = this.generateVideoId();
+        const fileName = `${imageId}.jpg`;
+        const storageRef = ref(storage, `wedding-images/${fileName}`);
+
+        console.log('📤 Starting image upload:', fileName);
+
+        // Create upload task with metadata
+        const uploadTask = uploadBytesResumable(storageRef, imageBlob, {
+            contentType: 'image/jpeg',
+            customMetadata: {
+                guestName: metadata.guestName,
+                uploadedAt: new Date().toISOString()
+            }
+        });
+
+        this.currentUploadTask = uploadTask;
+
+        return new Promise((resolve, reject) => {
+            uploadTask.on('state_changed',
+                // Progress updates
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    console.log(`Image upload progress: ${progress.toFixed(1)}%`);
+
+                    if (progressCallback) {
+                        progressCallback(progress);
+                    }
+                },
+                // Error handling
+                (error) => {
+                    console.error('Image upload error:', error);
+                    this.currentUploadTask = null;
+                    reject(this.handleUploadError(error));
+                },
+                // Upload complete
+                async () => {
+                    try {
+                        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                        console.log('✅ Image upload complete, URL:', downloadURL);
+
+                        // Save image metadata to Firestore
+                        const docId = await this.saveImageMetadata(imageId, downloadURL, metadata, imageBlob.size);
+
+                        this.currentUploadTask = null;
+
+                        resolve({
+                            imageId: imageId,
+                            imageUrl: downloadURL,
+                            documentId: docId,
+                            success: true
+                        });
+                    } catch (error) {
+                        console.error('Error saving image metadata:', error);
+                        this.currentUploadTask = null;
+                        resolve({
+                            imageId: imageId,
+                            imageUrl: downloadURL,
+                            documentId: null,
+                            success: false,
+                            partialSuccess: true,
+                            error: error.message
+                        });
+                    }
+                }
+            );
+        });
+    }
+
+    /**
+     * Save image metadata to Firestore (videoMetadata collection, mediaType: 'image')
+     * @param {string} imageId - UUID of the image
+     * @param {string} imageUrl - Firebase Storage download URL
+     * @param {Object} metadata - Image metadata (guestName, width, height, originalFileSize)
+     * @param {number} fileSize - Compressed file size in bytes
+     * @returns {Promise<string>} Document ID
+     */
+    async saveImageMetadata(imageId, imageUrl, metadata, fileSize) {
+        try {
+            const deviceInfo = detectDevice();
+
+            const docData = {
+                // Required fields
+                guestName: metadata.guestName,
+                timestamp: serverTimestamp(),
+                mediaType: 'image',
+                mediaUrl: imageUrl,
+                videoUrl: imageUrl,       // backward compat
+                imageUrl: imageUrl,
+                width: metadata.width || 0,
+                height: metadata.height || 0,
+                fileSize: fileSize,
+                originalFileSize: metadata.originalFileSize || 0,
+
+                // Optional device info
+                deviceInfo: {
+                    userAgent: deviceInfo.userAgent,
+                    platform: deviceInfo.platform,
+                    isMobile: deviceInfo.isMobile,
+                    isIOS: deviceInfo.isIOS,
+                    isSafari: deviceInfo.isSafari
+                },
+
+                // Status flags
+                uploadComplete: true,
+                viewed: false,
+                starred: false,
+
+                // Timestamps
+                uploadedAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            };
+
+            const docRef = await addDoc(collection(db, 'videoMetadata'), docData);
+            console.log('✅ Image metadata saved with ID:', docRef.id);
+
+            return docRef.id;
+        } catch (error) {
+            console.error('Error saving image metadata:', error);
+            throw new Error('Failed to save image metadata: ' + error.message);
+        }
+    }
+
+    /**
      * Cancel ongoing upload
      */
     cancelUpload() {
@@ -184,7 +320,7 @@ class VideoUploader {
             'storage/invalid-checksum': 'הקובץ נפגם במהלך ההעלאה. אנא נסו שוב.'
         };
 
-        const message = errorMessages[error.code] || 'שגיאה בהעלאת הוידאו. אנא בדקו את החיבור לאינטרנט ונסו שוב.';
+        const message = errorMessages[error.code] || 'שגיאה בהעלאת הקובץ. אנא בדקו את החיבור לאינטרנט ונסו שוב.';
         const hebrewError = new Error(message);
         hebrewError.originalError = error;
         

@@ -1,6 +1,6 @@
 /**
  * Admin Panel JavaScript
- * Manages the admin panel for viewing uploaded wedding videos
+ * Manages the admin panel for viewing uploaded wedding media (videos & images)
  */
 
 import { storage, auth, db } from '../config/firebase-config.js';
@@ -28,9 +28,10 @@ const errorMessage = document.getElementById('errorMessage');
 const videosGrid = document.getElementById('videosGrid');
 
 // Stats elements
-const totalVideosElement = document.getElementById('totalVideos');
-const totalGuestsElement = document.getElementById('totalGuests');
-const totalSizeElement = document.getElementById('totalSize');
+const statVideosElement = document.getElementById('stat-videos');
+const statImagesElement = document.getElementById('stat-images');
+const statGuestsElement = document.getElementById('stat-guests');
+const statStorageElement = document.getElementById('stat-storage');
 
 // Modal elements
 const videoModal = document.getElementById('videoModal');
@@ -41,10 +42,16 @@ const modalVideoSource = document.getElementById('modalVideoSource');
 const modalGuestName = document.getElementById('modalGuestName');
 const modalDate = document.getElementById('modalDate');
 const modalDownload = document.getElementById('modalDownload');
+const modalDownloadText = document.getElementById('modalDownloadText');
+const modalVideoContainer = document.getElementById('modalVideoContainer');
+const modalImageContainer = document.getElementById('modalImageContainer');
+const modalImage = document.getElementById('modalImage');
 
 // Application state
-let videos = [];
+let mediaItems = [];
 let currentUser = null;
+let currentFilter = 'all';
+let selectedItems = new Set(); // Track selected item indices
 
 /**
  * Initialize the admin panel
@@ -68,9 +75,9 @@ async function init() {
             console.log('✅ Authenticated as:', user.email);
             userEmailElement.textContent = user.email;
             
-            // Load videos only if they haven't been loaded yet
-            if (videos.length === 0) {
-                await loadVideos();
+            // Load media only if they haven't been loaded yet
+            if (mediaItems.length === 0) {
+                await loadMedia();
             }
         } else {
             console.log('❌ User signed out, redirecting...');
@@ -80,6 +87,9 @@ async function init() {
 
     // Set up event listeners
     setupEventListeners();
+
+    // Initialize QR code section
+    initQRSection();
 }
 
 /**
@@ -90,15 +100,27 @@ function setupEventListeners() {
     logoutButton.addEventListener('click', handleLogout);
 
     // Modal close handlers
-    modalClose.addEventListener('click', closeVideoModal);
-    modalOverlay.addEventListener('click', closeVideoModal);
+    modalClose.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', closeModal);
 
     // Close modal on escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !videoModal.classList.contains('hidden')) {
-            closeVideoModal();
+            closeModal();
         }
     });
+
+    // Filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            handleFilterClick(btn);
+        });
+    });
+
+    // Selection controls
+    document.getElementById('selectAllBtn')?.addEventListener('click', selectAllVisible);
+    document.getElementById('downloadZipBtn')?.addEventListener('click', downloadSelectedAsZip);
+    document.getElementById('clearSelectionBtn')?.addEventListener('click', clearSelection);
 }
 
 /**
@@ -118,65 +140,87 @@ async function handleLogout() {
 }
 
 /**
- * Load all videos from Firestore
+ * Load all media from Firestore (videos and images)
  */
-async function loadVideos() {
+async function loadMedia() {
     try {
-        console.log('📥 Loading videos from Firestore...');
+        console.log('📥 Loading media from Firestore...');
         
         // Show loading state
         showState('loading');
 
         // Query videoMetadata collection, ordered by timestamp (newest first)
-        const videosQuery = query(
+        const mediaQuery = query(
             collection(db, 'videoMetadata'),
             orderBy('timestamp', 'desc')
         );
 
-        const querySnapshot = await getDocs(videosQuery);
-        console.log(`Found ${querySnapshot.size} videos`);
+        const querySnapshot = await getDocs(mediaQuery);
+        console.log(`Found ${querySnapshot.size} media items`);
 
         if (querySnapshot.empty) {
             showState('empty');
             return;
         }
 
-        // Process each video document
-        videos = [];
+        // Process each media document
+        mediaItems = [];
         querySnapshot.forEach((doc) => {
             const data = doc.data();
+            
+            // Detect media type — backward compat: old docs without mediaType are videos
+            const mediaType = data.mediaType || 'video';
             
             // Convert Firestore timestamp to Date
             const uploadDate = data.timestamp?.toDate() || data.uploadedAt?.toDate() || new Date();
             
-            videos.push({
-                id: doc.id,
-                name: `${data.guestName}.webm`,
-                url: data.videoUrl,
-                guestName: data.guestName || 'אורח',
-                uploadDate: uploadDate.toISOString(),
-                size: data.fileSize || 0,
-                contentType: 'video/webm',
-                duration: data.duration || 0,
-                deviceInfo: data.deviceInfo || {},
-                viewed: data.viewed || false,
-                starred: data.starred || false
-            });
+            if (mediaType === 'image') {
+                mediaItems.push({
+                    id: doc.id,
+                    mediaType: 'image',
+                    name: `${data.guestName}.jpg`,
+                    url: data.mediaUrl || data.imageUrl || data.videoUrl,
+                    guestName: data.guestName || 'אורח',
+                    uploadDate: uploadDate.toISOString(),
+                    size: data.fileSize || 0,
+                    contentType: 'image/jpeg',
+                    width: data.width || 0,
+                    height: data.height || 0,
+                    deviceInfo: data.deviceInfo || {},
+                    viewed: data.viewed || false,
+                    starred: data.starred || false
+                });
+            } else {
+                mediaItems.push({
+                    id: doc.id,
+                    mediaType: 'video',
+                    name: `${data.guestName}.webm`,
+                    url: data.mediaUrl || data.videoUrl,
+                    guestName: data.guestName || 'אורח',
+                    uploadDate: uploadDate.toISOString(),
+                    size: data.fileSize || 0,
+                    contentType: 'video/webm',
+                    duration: data.duration || 0,
+                    deviceInfo: data.deviceInfo || {},
+                    viewed: data.viewed || false,
+                    starred: data.starred || false
+                });
+            }
         });
 
-        console.log(`✅ Successfully loaded ${videos.length} videos`);
+        console.log(`✅ Successfully loaded ${mediaItems.length} media items`);
 
         // Update stats
         updateStats();
 
-        // Display videos
-        displayVideos();
+        // Display media
+        displayMedia();
 
-        // Show videos grid
+        // Show media grid
         showState('videos');
 
     } catch (error) {
-        console.error('❌ Error loading videos:', error);
+        console.error('❌ Error loading media:', error);
         errorMessage.textContent = `שגיאה: ${error.message}`;
         showState('error');
     }
@@ -186,155 +230,314 @@ async function loadVideos() {
  * Update statistics
  */
 function updateStats() {
-    // Total videos
-    totalVideosElement.textContent = videos.length;
+    // Video count
+    const videoCount = mediaItems.filter(item => item.mediaType === 'video').length;
+    statVideosElement.textContent = videoCount;
 
-    // Unique guests (count unique guest names)
-    const uniqueGuests = new Set(videos.map(v => v.guestName));
-    totalGuestsElement.textContent = uniqueGuests.size;
+    // Image count
+    const imageCount = mediaItems.filter(item => item.mediaType === 'image').length;
+    statImagesElement.textContent = imageCount;
 
-    // Total size
-    const totalBytes = videos.reduce((sum, video) => sum + (video.size || 0), 0);
+    // Unique guests (count unique guest names across all media)
+    const uniqueGuests = new Set(mediaItems.map(item => item.guestName));
+    statGuestsElement.textContent = uniqueGuests.size;
+
+    // Total size (both images and videos)
+    const totalBytes = mediaItems.reduce((sum, item) => sum + (item.size || 0), 0);
     const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
-    totalSizeElement.textContent = `${totalMB} MB`;
+    statStorageElement.textContent = `${totalMB} MB`;
 }
 
 /**
- * Display videos in the grid
+ * Display media items in the grid
  */
-function displayVideos() {
+function displayMedia() {
     videosGrid.innerHTML = '';
 
-    videos.forEach((video, index) => {
-        const videoCard = createVideoCard(video, index);
-        videosGrid.appendChild(videoCard);
+    mediaItems.forEach((item, index) => {
+        const card = createMediaCard(item, index);
+        videosGrid.appendChild(card);
     });
 }
 
 /**
- * Create a video card element
+ * Create a media card element (video or image)
  */
-function createVideoCard(video, index) {
+function createMediaCard(item, index) {
     const card = document.createElement('div');
     card.className = 'video-card';
+    card.setAttribute('data-media-type', item.mediaType);
+    card.setAttribute('data-index', index);
 
     // Format date
-    const formattedDate = formatDate(video.uploadDate);
-    const formattedTime = formatTime(video.uploadDate);
+    const formattedDate = formatDate(item.uploadDate);
+    const formattedTime = formatTime(item.uploadDate);
 
     // Format file size
-    const sizeMB = (video.size / (1024 * 1024)).toFixed(1);
+    const sizeMB = (item.size / (1024 * 1024)).toFixed(1);
 
-    // Format video duration (from metadata, not upload time)
-    const formattedDuration = formatDuration(video.duration);
-
-    card.innerHTML = `
-        <div class="video-thumbnail">
-            <video class="video-preview" preload="metadata" muted>
-                <source src="${video.url}#t=0.5" type="${video.contentType}">
-            </video>
-            <div class="video-overlay">
-                <button class="play-button" data-index="${index}">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z"/>
-                    </svg>
-                </button>
+    if (item.mediaType === 'image') {
+        card.innerHTML = `
+            <div class="video-thumbnail">
+                <div class="card-select-checkbox" data-index="${index}"></div>
+                <img
+                    class="media-thumbnail-image" 
+                    src="${item.url}" 
+                    alt="תמונה מאת ${escapeHtml(item.guestName)}"
+                    loading="lazy"
+                />
+                <div class="video-overlay">
+                    <button class="play-button" data-index="${index}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            <line x1="11" y1="8" x2="11" y2="14"></line>
+                            <line x1="8" y1="11" x2="14" y2="11"></line>
+                        </svg>
+                    </button>
+                </div>
+                <span class="media-type-badge" aria-label="סוג: תמונה">📸</span>
             </div>
-            ${video.duration > 0 ? `<div class="video-duration">${formattedDuration}</div>` : ''}
-        </div>
-        <div class="video-info">
-            <h3 class="video-guest-name">${escapeHtml(video.guestName)}</h3>
-            <div class="video-meta">
-                <span class="video-date">
+            <div class="video-info">
+                <h3 class="video-guest-name">${escapeHtml(item.guestName)}</h3>
+                <div class="video-meta">
+                    <span class="video-date">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        ${formattedDate} ${formattedTime}
+                    </span>
+                    <span class="video-size">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        ${sizeMB} MB
+                    </span>
+                </div>
+            </div>
+            <div class="video-actions">
+                <button class="btn-watch" data-index="${index}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="16" y1="2" x2="16" y2="6"></line>
-                        <line x1="8" y1="2" x2="8" y2="6"></line>
-                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
-                    ${formattedDate} ${formattedTime}
-                </span>
-                <span class="video-size">
+                    צפו
+                </button>
+                <a href="${item.url}" download="${item.name}" class="btn-download-small">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    ${sizeMB} MB
-                </span>
+                    הורידו
+                </a>
             </div>
-        </div>
-        <div class="video-actions">
-            <button class="btn-watch" data-index="${index}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M23 7l-7 5 7 5V7z"></path>
-                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                </svg>
-                צפו
-            </button>
-            <a href="${video.url}" download="${video.name}" class="btn-download-small">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                הורידו
-            </a>
-        </div>
-    `;
+        `;
 
-    // Add event listeners to buttons
-    const playButton = card.querySelector('.play-button');
-    const watchButton = card.querySelector('.btn-watch');
-    const videoPreview = card.querySelector('.video-preview');
+        // Add event listeners for image card
+        const playButton = card.querySelector('.play-button');
+        const watchButton = card.querySelector('.btn-watch');
+        const imgThumbnail = card.querySelector('.media-thumbnail-image');
+        const selectCheckbox = card.querySelector('.card-select-checkbox');
 
-    playButton.addEventListener('click', () => openVideoModal(index));
-    watchButton.addEventListener('click', () => openVideoModal(index));
-    
-    // Make video thumbnail clickable
-    videoPreview.addEventListener('click', () => openVideoModal(index));
-    videoPreview.style.cursor = 'pointer';
+        playButton.addEventListener('click', () => openModal(index));
+        watchButton.addEventListener('click', () => openModal(index));
+        imgThumbnail.addEventListener('click', () => openModal(index));
+        imgThumbnail.style.cursor = 'pointer';
+
+        selectCheckbox.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleSelection(index);
+        });
+
+    } else {
+        // Video card (existing behavior)
+        const formattedDuration = formatDuration(item.duration);
+
+        card.innerHTML = `
+            <div class="video-thumbnail">
+                <div class="card-select-checkbox" data-index="${index}"></div>
+                <video class="video-preview" preload="metadata" muted>
+                    <source src="${item.url}#t=0.5" type="${item.contentType}">
+                </video>
+                <div class="video-overlay">
+                    <button class="play-button" data-index="${index}">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                    </button>
+                </div>
+                ${item.duration > 0 ? `<div class="video-duration">🎥 ${formattedDuration}</div>` : ''}
+                <span class="media-type-badge" aria-label="סוג: סרטון">🎥</span>
+            </div>
+            <div class="video-info">
+                <h3 class="video-guest-name">${escapeHtml(item.guestName)}</h3>
+                <div class="video-meta">
+                    <span class="video-date">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        ${formattedDate} ${formattedTime}
+                    </span>
+                    <span class="video-size">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        ${sizeMB} MB
+                    </span>
+                </div>
+            </div>
+            <div class="video-actions">
+                <button class="btn-watch" data-index="${index}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 7l-7 5 7 5V7z"></path>
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                    </svg>
+                    צפו
+                </button>
+                <a href="${item.url}" download="${item.name}" class="btn-download-small">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    הורידו
+                </a>
+            </div>
+        `;
+
+        // Add event listeners for video card
+        const playButton = card.querySelector('.play-button');
+        const watchButton = card.querySelector('.btn-watch');
+        const videoPreview = card.querySelector('.video-preview');
+        const selectCheckbox = card.querySelector('.card-select-checkbox');
+
+        playButton.addEventListener('click', () => openModal(index));
+        watchButton.addEventListener('click', () => openModal(index));
+        videoPreview.addEventListener('click', () => openModal(index));
+        videoPreview.style.cursor = 'pointer';
+
+        selectCheckbox.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleSelection(index);
+        });
+    }
 
     return card;
 }
 
 /**
- * Open video in modal
+ * Open media in modal (handles both video and image)
  */
-function openVideoModal(index) {
-    const video = videos[index];
+function openModal(index) {
+    const item = mediaItems[index];
     
-    // Set modal content
-    modalGuestName.textContent = video.guestName;
-    modalDate.textContent = formatDate(video.uploadDate);
-    modalVideoSource.src = video.url;
-    modalDownload.href = video.url;
-    modalDownload.download = video.name;
+    // Set modal header content
+    modalGuestName.textContent = item.guestName;
+    modalDate.textContent = formatDate(item.uploadDate);
+    
+    // Set download link
+    modalDownload.href = item.url;
+    modalDownload.download = item.name;
 
-    // Reload video
-    modalVideo.load();
+    if (item.mediaType === 'image') {
+        // Show image, hide video
+        modalVideoContainer.classList.add('hidden');
+        modalImageContainer.classList.remove('hidden');
+        
+        // Pause any playing video
+        modalVideo.pause();
+        modalVideo.currentTime = 0;
+        
+        // Set image source
+        modalImage.src = item.url;
+        modalImage.alt = `תמונה מאת ${item.guestName}`;
+        
+        // Update download button text
+        modalDownloadText.textContent = 'הורידו תמונה';
+    } else {
+        // Show video, hide image
+        modalVideoContainer.classList.remove('hidden');
+        modalImageContainer.classList.add('hidden');
+        
+        // Clear image
+        modalImage.src = '';
+        
+        // Set video source
+        modalVideoSource.src = item.url;
+        modalVideo.load();
+        
+        // Update download button text
+        modalDownloadText.textContent = 'הורידו סרטון';
+        
+        // Auto-play video
+        modalVideo.play().catch(error => {
+            console.log('Auto-play prevented:', error);
+        });
+    }
 
     // Show modal
     videoModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-
-    // Auto-play video
-    modalVideo.play().catch(error => {
-        console.log('Auto-play prevented:', error);
-    });
 }
 
 /**
- * Close video modal
+ * Close modal
  */
-function closeVideoModal() {
+function closeModal() {
     // Pause and reset video
     modalVideo.pause();
     modalVideo.currentTime = 0;
+    
+    // Clear image
+    modalImage.src = '';
 
     // Hide modal
     videoModal.classList.add('hidden');
     document.body.style.overflow = '';
+}
+
+/**
+ * Handle filter button click
+ */
+function handleFilterClick(clickedBtn) {
+    const filter = clickedBtn.getAttribute('data-filter');
+    
+    // Update active state on buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+    });
+    clickedBtn.classList.add('active');
+    clickedBtn.setAttribute('aria-selected', 'true');
+    
+    // Store current filter
+    currentFilter = filter;
+    
+    // Filter cards by data-media-type attribute using CSS class toggling
+    const cards = videosGrid.querySelectorAll('.video-card');
+    cards.forEach(card => {
+        const cardType = card.getAttribute('data-media-type');
+        
+        if (filter === 'all' || cardType === filter) {
+            card.classList.remove('hidden');
+        } else {
+            card.classList.add('hidden');
+        }
+    });
+
+    // Update selection UI after filtering (so select-all button state is correct)
+    updateSelectionUI();
 }
 
 /**
@@ -428,6 +631,289 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ── Multi-Select & ZIP Download ──────────────────────────────────────
+
+/**
+ * Toggle selection of a media item
+ */
+function toggleSelection(index) {
+    if (selectedItems.has(index)) {
+        selectedItems.delete(index);
+    } else {
+        selectedItems.add(index);
+    }
+    updateSelectionUI();
+}
+
+/**
+ * Update all selection-related UI
+ */
+function updateSelectionUI() {
+    const selectionBar = document.getElementById('selectionBar');
+    const selectionCount = document.getElementById('selectionCount');
+    const downloadZipBtn = document.getElementById('downloadZipBtn');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    
+    // Update card visual states
+    document.querySelectorAll('.video-card').forEach(card => {
+        const index = parseInt(card.dataset.index);
+        if (selectedItems.has(index)) {
+            card.classList.add('selected');
+        } else {
+            card.classList.remove('selected');
+        }
+    });
+    
+    // Show/hide selection bar
+    if (selectedItems.size > 0) {
+        selectionBar.classList.remove('hidden');
+        selectionCount.textContent = `${selectedItems.size} נבחרו`;
+        downloadZipBtn.disabled = false;
+    } else {
+        selectionBar.classList.add('hidden');
+        downloadZipBtn.disabled = true;
+    }
+    
+    // Update "select all" button text
+    const visibleCards = document.querySelectorAll('.video-card:not(.hidden)');
+    const allVisibleSelected = visibleCards.length > 0 && [...visibleCards].every(card => selectedItems.has(parseInt(card.dataset.index)));
+    selectAllBtn.textContent = allVisibleSelected ? 'בטל בחירה' : 'בחר הכל';
+}
+
+/**
+ * Select all visible (non-filtered) items
+ */
+function selectAllVisible() {
+    const visibleCards = document.querySelectorAll('.video-card:not(.hidden)');
+    const allVisibleSelected = visibleCards.length > 0 && [...visibleCards].every(card => selectedItems.has(parseInt(card.dataset.index)));
+    
+    if (allVisibleSelected) {
+        // Deselect all visible
+        visibleCards.forEach(card => {
+            selectedItems.delete(parseInt(card.dataset.index));
+        });
+    } else {
+        // Select all visible
+        visibleCards.forEach(card => {
+            selectedItems.add(parseInt(card.dataset.index));
+        });
+    }
+    updateSelectionUI();
+}
+
+/**
+ * Clear all selections
+ */
+function clearSelection() {
+    selectedItems.clear();
+    updateSelectionUI();
+}
+
+/**
+ * Download selected items as ZIP
+ */
+async function downloadSelectedAsZip() {
+    if (selectedItems.size === 0) return;
+    
+    // Create progress overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'zip-progress-overlay';
+    overlay.innerHTML = `
+        <div class="zip-progress-card">
+            <h3>📦 מכין קובץ ZIP...</h3>
+            <div class="zip-progress-bar">
+                <div class="zip-progress-fill" id="zipProgressFill"></div>
+            </div>
+            <p class="zip-progress-text" id="zipProgressText">מוריד 0 מתוך ${selectedItems.size}...</p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    const progressFill = document.getElementById('zipProgressFill');
+    const progressText = document.getElementById('zipProgressText');
+    
+    try {
+        const zip = new JSZip();
+        const selectedArray = Array.from(selectedItems);
+        let completed = 0;
+        
+        for (const index of selectedArray) {
+            const item = mediaItems[index];
+            if (!item || !item.url) continue;
+            
+            try {
+                const response = await fetch(item.url);
+                const blob = await response.blob();
+                
+                // Create a unique filename
+                const extension = item.mediaType === 'image' ? 'jpg' : 'webm';
+                const fileName = `${item.guestName || 'guest'}_${index}.${extension}`;
+                
+                zip.file(fileName, blob);
+            } catch (fetchErr) {
+                console.warn(`Failed to fetch item ${index}:`, fetchErr);
+            }
+            
+            completed++;
+            const percent = Math.round((completed / selectedArray.length) * 100);
+            progressFill.style.width = `${percent}%`;
+            progressText.textContent = `מוריד ${completed} מתוך ${selectedArray.length}...`;
+        }
+        
+        progressText.textContent = 'יוצר קובץ ZIP...';
+        
+        const zipBlob = await zip.generateAsync({ type: 'blob' }, (metadata) => {
+            progressFill.style.width = `${Math.round(metadata.percent)}%`;
+        });
+        
+        // Trigger download
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `wedding-media-${new Date().toISOString().slice(0,10)}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Clear selection after successful download
+        clearSelection();
+        
+    } catch (err) {
+        console.error('ZIP creation failed:', err);
+        alert('שגיאה ביצירת קובץ ZIP. נסו שנית.');
+    } finally {
+        document.body.removeChild(overlay);
+    }
+}
+
+// ── QR Code Section ──────────────────────────────────────────────────
+
+/**
+ * Initialize the QR code section — set default base URL and attach listeners
+ */
+function initQRSection() {
+    const qrBaseUrlInput = document.getElementById('qrBaseUrl');
+    const generateQrBtn = document.getElementById('generateQrBtn');
+    const downloadPhotoQr = document.getElementById('downloadPhotoQr');
+    const downloadVideoQr = document.getElementById('downloadVideoQr');
+
+    if (!qrBaseUrlInput || !generateQrBtn) return;
+
+    // Pre-fill base URL: derive from current location, pointing to index.html
+    const origin = "http://10.100.102.9:8000";
+    console.log('Current origin:', origin);
+    const pathname = window.location.pathname;
+    console.log('Current pathname:', pathname); 
+    // Replace admin-panel.html (or any trailing file) with index.html
+    const basePath = pathname.substring(0, pathname.lastIndexOf('/') + 1);
+    qrBaseUrlInput.value = `${origin}${basePath}capture.html`;
+    console.log(qrBaseUrlInput.value);
+
+    // Generate QR codes on button click
+    generateQrBtn.addEventListener('click', () => {
+        generateQRCodes();
+    });
+
+    // Download handlers
+    if (downloadPhotoQr) {
+        downloadPhotoQr.addEventListener('click', () => {
+            downloadQR('photoQrContainer', 'qr-photo.png');
+        });
+    }
+    if (downloadVideoQr) {
+        downloadVideoQr.addEventListener('click', () => {
+            downloadQR('videoQrContainer', 'qr-video.png');
+        });
+    }
+
+    // Auto-generate on load
+    generateQRCodes();
+}
+
+/**
+ * Generate QR codes for photo and video modes
+ */
+function generateQRCodes() {
+    const qrBaseUrlInput = document.getElementById('qrBaseUrl');
+    if (!qrBaseUrlInput) return;
+
+    const baseUrl = qrBaseUrlInput.value.trim();
+    if (!baseUrl) {
+        alert('אנא הזינו כתובת בסיס תקינה');
+        return;
+    }
+
+    if (typeof QRCode === 'undefined') {
+        console.error('❌ QRCode library not loaded');
+        return;
+    }
+
+    try {
+        // Photo QR
+        const photoUrl = `${baseUrl}?mode=photo`;
+        const photoContainer = document.getElementById('photoQrContainer');
+        const photoUrlDisplay = document.getElementById('photoQrUrl');
+        if (photoContainer) {
+            photoContainer.innerHTML = '';
+            new QRCode(photoContainer, {
+                text: photoUrl,
+                width: 256,
+                height: 256,
+                colorDark: '#6b7b5e',
+                colorLight: '#ffffff'
+            });
+        }
+        if (photoUrlDisplay) {
+            photoUrlDisplay.textContent = photoUrl;
+        }
+
+        // Video QR
+        const videoUrl = `${baseUrl}?mode=video`;
+        const videoContainer = document.getElementById('videoQrContainer');
+        const videoUrlDisplay = document.getElementById('videoQrUrl');
+        if (videoContainer) {
+            videoContainer.innerHTML = '';
+            new QRCode(videoContainer, {
+                text: videoUrl,
+                width: 256,
+                height: 256,
+                colorDark: '#6b7b5e',
+                colorLight: '#ffffff'
+            });
+        }
+        if (videoUrlDisplay) {
+            videoUrlDisplay.textContent = videoUrl;
+        }
+
+        console.log('✅ QR codes generated successfully');
+    } catch (error) {
+        console.error('❌ Error generating QR codes:', error);
+    }
+}
+
+/**
+ * Download a QR code canvas as a PNG file
+ * @param {string} canvasId - The ID of the canvas element
+ * @param {string} filename - The filename for the downloaded PNG
+ */
+function downloadQR(containerId, filename) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    // qrcodejs creates a <canvas> inside the container div
+    const canvas = container.querySelector('canvas');
+    if (!canvas) {
+        console.error('❌ No canvas found inside QR container');
+        return;
+    }
+
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
 }
 
 // Initialize on page load

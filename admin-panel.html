@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>פאנל ניהול - סרטוני החתונה | Admin Panel</title>
+    <title>פאנל ניהול - ברכות מהחתונה | Admin Panel</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="images/logo.png">
@@ -13,6 +13,12 @@
     
     <!-- Admin Panel Styles -->
     <link rel="stylesheet" href="styles/admin-panel.css">
+
+    <!-- QR Code Library (qrcodejs - browser-native, exposes global QRCode) -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+    <!-- JSZip Library for multi-file ZIP download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
     <div class="admin-container">
@@ -23,7 +29,7 @@
                     <img src="images/logo.png" alt="Odelya & Omer" class="header-logo">
                     <div class="header-titles">
                         <h1 class="header-title">פאנל ניהול</h1>
-                        <p class="header-subtitle">סרטוני ברכות מהאורחים</p>
+                        <p class="header-subtitle">ברכות מהאורחים</p>
                     </div>
                 </div>
                 <div class="header-right">
@@ -54,8 +60,21 @@
                         </svg>
                     </div>
                     <div class="stat-content">
-                        <div class="stat-value" id="totalVideos">0</div>
+                        <div class="stat-value" id="stat-videos">0</div>
                         <div class="stat-label">סרטונים</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="stat-images">0</div>
+                        <div class="stat-label">תמונות</div>
                     </div>
                 </div>
                 <div class="stat-card">
@@ -66,7 +85,7 @@
                         </svg>
                     </div>
                     <div class="stat-content">
-                        <div class="stat-value" id="totalGuests">0</div>
+                        <div class="stat-value" id="stat-guests">0</div>
                         <div class="stat-label">אורחים</div>
                     </div>
                 </div>
@@ -79,16 +98,84 @@
                         </svg>
                     </div>
                     <div class="stat-content">
-                        <div class="stat-value" id="totalSize">0 MB</div>
-                        <div class="stat-label">נפח</div>
+                        <div class="stat-value" id="stat-storage">0 MB</div>
+                        <div class="stat-label">נפח אחסון</div>
                     </div>
+                </div>
+            </div>
+
+            <!-- QR Codes Section -->
+            <div class="qr-section">
+                <h2 class="qr-section-title">🔗 קודי QR</h2>
+                <div class="qr-base-url-container">
+                    <label for="qrBaseUrl" class="qr-label">כתובת בסיס:</label>
+                    <div class="qr-url-row">
+                        <input type="text" id="qrBaseUrl" class="qr-url-input" dir="ltr" placeholder="https://your-site.com/index.html" />
+                        <button id="generateQrBtn" class="btn-generate-qr">צרו QR</button>
+                    </div>
+                </div>
+                <div class="qr-cards-container">
+                    <!-- Photo QR Card -->
+                    <div class="qr-card">
+                        <h3 class="qr-card-title">📸 QR לצילום תמונה</h3>
+                        <div class="qr-canvas-wrapper">
+                            <div id="photoQrContainer"></div>
+                        </div>
+                        <p class="qr-url-display" id="photoQrUrl" dir="ltr"></p>
+                        <button class="btn-download-qr" id="downloadPhotoQr">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            הורדת QR
+                        </button>
+                    </div>
+                    <!-- Video QR Card -->
+                    <div class="qr-card">
+                        <h3 class="qr-card-title">🎥 QR לצילום סרטון</h3>
+                        <div class="qr-canvas-wrapper">
+                            <div id="videoQrContainer"></div>
+                        </div>
+                        <p class="qr-url-display" id="videoQrUrl" dir="ltr"></p>
+                        <button class="btn-download-qr" id="downloadVideoQr">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            הורדת QR
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Media Filter Bar -->
+            <div class="media-filter-bar" role="tablist" aria-label="סינון לפי סוג מדיה">
+                <button class="filter-btn active" data-filter="all" role="tab" aria-selected="true" aria-label="הצגת כל קבצי המדיה">הכל</button>
+                <button class="filter-btn" data-filter="video" role="tab" aria-selected="false" aria-label="הצגת סרטונים בלבד">🎥 סרטונים</button>
+                <button class="filter-btn" data-filter="image" role="tab" aria-selected="false" aria-label="הצגת תמונות בלבד">📸 תמונות</button>
+            </div>
+
+            <!-- Selection Bar (appears when items are selected) -->
+            <div id="selectionBar" class="selection-bar hidden">
+                <div class="selection-info">
+                    <button id="selectAllBtn" class="btn-select-all">בחר הכל</button>
+                    <span id="selectionCount" class="selection-count">0 נבחרו</span>
+                </div>
+                <div class="selection-actions">
+                    <button id="downloadZipBtn" class="btn-download-zip" disabled>
+                        <span class="zip-icon">📦</span>
+                        הורד כ-ZIP
+                    </button>
+                    <button id="clearSelectionBtn" class="btn-clear-selection">נקה בחירה</button>
                 </div>
             </div>
 
             <!-- Loading State -->
             <div id="loadingState" class="state-container">
                 <div class="loader-spinner"></div>
-                <p class="state-message">טוען סרטונים...</p>
+                <p class="state-message">טוען ברכות...</p>
             </div>
 
             <!-- Empty State -->
@@ -97,8 +184,8 @@
                     <path d="M23 7l-7 5 7 5V7z"></path>
                     <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                 </svg>
-                <h2 class="state-title">אין סרטונים עדיין</h2>
-                <p class="state-message">כשאורחים יעלו סרטוני ברכות, הם יופיעו כאן</p>
+                <h2 class="state-title">אין ברכות עדיין</h2>
+                <p class="state-message">כשאורחים יעלו ברכות, הם יופיעו כאן</p>
                 <a href="index.html" class="btn-primary">חזרו לדף הראשי</a>
             </div>
 
@@ -109,14 +196,14 @@
                     <line x1="12" y1="8" x2="12" y2="12"></line>
                     <line x1="12" y1="16" x2="12.01" y2="16"></line>
                 </svg>
-                <h2 class="state-title">שגיאה בטעינת הסרטונים</h2>
+                <h2 class="state-title">שגיאה בטעינת הברכות</h2>
                 <p class="state-message" id="errorMessage">אנא נסו לרענן את הדף</p>
                 <button class="btn-primary" onclick="window.location.reload()">רעננו</button>
             </div>
 
-            <!-- Videos Grid -->
+            <!-- Media Grid -->
             <div id="videosGrid" class="videos-grid hidden">
-                <!-- Video cards will be dynamically inserted here -->
+                <!-- Media cards (videos & images) will be dynamically inserted here -->
             </div>
         </main>
 
@@ -126,7 +213,7 @@
         </footer>
     </div>
 
-    <!-- Video Player Modal -->
+    <!-- Media Player Modal -->
     <div id="videoModal" class="modal hidden">
         <div class="modal-overlay" id="modalOverlay"></div>
         <div class="modal-content">
@@ -140,11 +227,14 @@
                 <h2 id="modalGuestName">שם אורח</h2>
                 <p id="modalDate">תאריך</p>
             </div>
-            <div class="modal-video-container">
+            <div class="modal-video-container" id="modalVideoContainer">
                 <video id="modalVideo" controls preload="metadata">
                     <source id="modalVideoSource" type="video/webm">
                     הדפדפן שלך אינו תומך בהצגת וידאו
                 </video>
+            </div>
+            <div class="modal-video-container hidden" id="modalImageContainer">
+                <img id="modalImage" class="modal-media-image" alt="תמונה" />
             </div>
             <div class="modal-actions">
                 <a id="modalDownload" class="btn-download" download>
@@ -153,7 +243,7 @@
                         <polyline points="7 10 12 15 17 10"></polyline>
                         <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    הורידו סרטון
+                    <span id="modalDownloadText">הורידו סרטון</span>
                 </a>
             </div>
         </div>

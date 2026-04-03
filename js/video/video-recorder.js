@@ -1,16 +1,16 @@
 /**
  * Video Recorder Class
- * Handles video file selection from native camera
+ * Handles video file selection from native camera and image processing
  */
 
-import { detectDevice } from './video-utils.js';
+import { detectDevice, validateImageFile, compressImage, getImageDimensions, validateVideoDuration } from './video-utils.js';
 
 class VideoRecorder {
     constructor() {
         this.recordedBlob = null;
         this.recordingDuration = 0;
         this.deviceInfo = detectDevice();
-        this.maxDuration = 60; // 60 seconds max
+        this.maxDuration = 45; // 45 seconds max
     }
 
     /**
@@ -39,6 +39,14 @@ class VideoRecorder {
             
             // Get video duration if possible
             await this.getVideoDuration(file);
+
+            // Validate video duration against 45-second cap
+            const durationCheck = validateVideoDuration(this.recordingDuration);
+            if (!durationCheck.valid) {
+                const durationError = new Error('Video exceeds maximum duration');
+                durationError.type = durationCheck.error;
+                throw durationError;
+            }
             
             console.log('✅ Video file processed successfully');
             
@@ -97,6 +105,60 @@ class VideoRecorder {
      */
     getDuration() {
         return this.recordingDuration;
+    }
+
+    /**
+     * Handle image file selection: validate, compress, and return processed data
+     * @param {File} file - Image file from input element
+     * @returns {Promise<{blob: Blob, width: number, height: number, originalSize: number, compressedSize: number}>}
+     */
+    async handleImageSelection(file) {
+        try {
+            if (!file) {
+                throw new Error('No file selected');
+            }
+
+            console.log('🖼️ Image file selected:', {
+                name: file.name,
+                size: file.size,
+                type: file.type
+            });
+
+            // Validate image file (type + size)
+            const validation = validateImageFile(file);
+            if (!validation.valid) {
+                const validationError = new Error(validation.error);
+                validationError.type = validation.error;
+                throw validationError;
+            }
+
+            const originalSize = file.size;
+
+            // Get original dimensions
+            const { width, height } = await getImageDimensions(file);
+            console.log('📐 Original dimensions:', width, 'x', height);
+
+            // Compress the image (resize + JPEG encode)
+            const compressedBlob = await compressImage(file);
+            const compressedSize = compressedBlob.size;
+            console.log(`🗜️ Compressed: ${originalSize} → ${compressedSize} bytes (${Math.round((1 - compressedSize / originalSize) * 100)}% reduction)`);
+
+            // Get final dimensions after compression
+            const finalDims = await getImageDimensions(compressedBlob);
+
+            console.log('✅ Image processed successfully');
+
+            return {
+                blob: compressedBlob,
+                width: finalDims.width,
+                height: finalDims.height,
+                originalSize: originalSize,
+                compressedSize: compressedSize
+            };
+        } catch (error) {
+            console.error('❌ Error processing image file:', error);
+            throw error;
+        }
     }
 
     /**

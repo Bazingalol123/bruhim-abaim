@@ -1,7 +1,14 @@
 /**
  * Video Recording Utility Functions
- * Helper functions for video recording feature
+ * Helper functions for video recording and image upload features
  */
+
+// ── Image & Video Constants ──────────────────────────────────────────
+export const MAX_VIDEO_DURATION = 45; // seconds
+export const IMAGE_MAX_DIMENSION = 4096;
+export const IMAGE_QUALITY = 0.92;
+export const MAX_IMAGE_SIZE = 15 * 1024 * 1024; // 15MB raw before compression
+export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 
 /**
  * Format time in seconds to MM:SS
@@ -255,6 +262,18 @@ export async function logDiagnostics(error = null) {
 export function getErrorMessage(error) {
     const deviceInfo = detectDevice();
     const securityInfo = checkSecureContext();
+
+    // ── Image & video-specific error types (by string type) ──────────
+    const mediaErrorMessages = {
+        'image-too-large': '😔 התמונה גדולה מדי. אנא נסו תמונה קטנה יותר',
+        'invalid-image-type': '😔 סוג הקובץ לא נתמך. אנא צלמו תמונה בפורמט רגיל',
+        'compression-failed': '😔 לא הצלחנו לעבד את התמונה. אנא נסו שוב',
+        'video-too-long': '😔 הסרטון ארוך מדי. אנא צלמו סרטון קצר יותר (עד 45 שניות)'
+    };
+
+    if (error.type && mediaErrorMessages[error.type]) {
+        return mediaErrorMessages[error.type];
+    }
     
     // Check for specific error types
     if (error.name === 'NotAllowedError') {
@@ -340,4 +359,135 @@ export async function runPreflightChecks() {
     }
     
     return results;
+}
+
+// ── Image Utility Functions ──────────────────────────────────────────
+
+/**
+ * Validate an image file (type + size)
+ * @param {File} file
+ * @returns {{valid: boolean, error: string|null}}
+ */
+export function validateImageFile(file) {
+    if (!file) {
+        return { valid: false, error: 'invalid-image-type' };
+    }
+
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+        return { valid: false, error: 'invalid-image-type' };
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+        return { valid: false, error: 'image-too-large' };
+    }
+
+    return { valid: true, error: null };
+}
+
+/**
+ * Get image dimensions by loading it into an Image element
+ * @param {File|Blob} file
+ * @returns {Promise<{width: number, height: number}>}
+ */
+export function getImageDimensions(file) {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+
+        img.onload = () => {
+            const dimensions = { width: img.naturalWidth, height: img.naturalHeight };
+            URL.revokeObjectURL(url);
+            resolve(dimensions);
+        };
+
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('Failed to load image'));
+        };
+
+        img.src = url;
+    });
+}
+
+/**
+ * Compress an image using the Canvas API.
+ * Resizes to max IMAGE_MAX_DIMENSION px (maintaining aspect ratio) and
+ * encodes as JPEG at IMAGE_QUALITY.
+ * @param {File|Blob} file
+ * @returns {Promise<Blob>} Compressed JPEG blob
+ */
+export async function compressImage(file) {
+    try {
+        // Load image dimensions first
+        const { width, height } = await getImageDimensions(file);
+
+        // Calculate target dimensions (maintain aspect ratio, cap at IMAGE_MAX_DIMENSION)
+        let targetWidth = width;
+        let targetHeight = height;
+
+        if (width > IMAGE_MAX_DIMENSION || height > IMAGE_MAX_DIMENSION) {
+            if (width > height) {
+                targetWidth = IMAGE_MAX_DIMENSION;
+                targetHeight = Math.round(height * (IMAGE_MAX_DIMENSION / width));
+            } else {
+                targetHeight = IMAGE_MAX_DIMENSION;
+                targetWidth = Math.round(width * (IMAGE_MAX_DIMENSION / height));
+            }
+        }
+
+        // Create canvas for compression
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        const ctx = canvas.getContext('2d');
+
+        // Draw the image onto the canvas
+        const imageBitmap = await createImageBitmap(file);
+        ctx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
+        imageBitmap.close();
+
+        // Convert canvas to JPEG blob
+        return new Promise((resolve, reject) => {
+            canvas.toBlob(
+                (blob) => {
+                    if (blob) {
+                        resolve(blob);
+                    } else {
+                        reject(new Error('Canvas toBlob returned null'));
+                    }
+                },
+                'image/jpeg',
+                IMAGE_QUALITY
+            );
+        });
+    } catch (error) {
+        console.error('Image compression failed:', error);
+        const compressionError = new Error('compression-failed');
+        compressionError.type = 'compression-failed';
+        throw compressionError;
+    }
+}
+
+/**
+ * Generate unique filename for an image upload
+ * @param {string} guestName
+ * @returns {string}
+ */
+export function generateImageFilename(guestName) {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const sanitizedName = guestName.replace(/[^a-zA-Z0-9א-ת\s]/g, '').replace(/\s+/g, '_');
+    return `ברכה_${sanitizedName}_${timestamp}.jpg`;
+}
+
+/**
+ * Validate that video duration is within the allowed cap
+ * @param {number} duration - Duration in seconds
+ * @returns {{valid: boolean, error: string|null}}
+ */
+export function validateVideoDuration(duration) {
+    if (typeof duration === 'number' && duration > MAX_VIDEO_DURATION) {
+        return { valid: false, error: 'video-too-long' };
+    }
+    return { valid: true, error: null };
 }
