@@ -1026,7 +1026,7 @@ function initQRSection() {
     if (!qrBaseUrlInput || !generateQrBtn) return;
 
     // Pre-fill base URL: derive from current location, pointing to index.html
-    const origin = "http://10.100.102.9:8000";
+    const origin = window.location.origin   ;
     console.log('Current origin:', origin);
     const pathname = window.location.pathname;
     console.log('Current pathname:', pathname); 
