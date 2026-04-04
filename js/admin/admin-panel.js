@@ -333,13 +333,6 @@ function createMediaCard(item, index) {
                 </div>
             </div>
             <div class="video-actions">
-                <button class="btn-watch" data-index="${index}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    צפו
-                </button>
                 <a href="${item.url}" download="${item.name}" class="btn-download-small">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -353,12 +346,10 @@ function createMediaCard(item, index) {
 
         // Add event listeners for image card
         const playButton = card.querySelector('.play-button');
-        const watchButton = card.querySelector('.btn-watch');
         const imgThumbnail = card.querySelector('.media-thumbnail-image');
         const selectCheckbox = card.querySelector('.card-select-checkbox');
 
         playButton.addEventListener('click', () => openModal(index));
-        watchButton.addEventListener('click', () => openModal(index));
         imgThumbnail.addEventListener('click', () => openModal(index));
         imgThumbnail.style.cursor = 'pointer';
 
@@ -410,13 +401,6 @@ function createMediaCard(item, index) {
                 </div>
             </div>
             <div class="video-actions">
-                <button class="btn-watch" data-index="${index}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M23 7l-7 5 7 5V7z"></path>
-                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                    </svg>
-                    צפו
-                </button>
                 <a href="${item.url}" download="${item.name}" class="btn-download-small">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -430,12 +414,10 @@ function createMediaCard(item, index) {
 
         // Add event listeners for video card
         const playButton = card.querySelector('.play-button');
-        const watchButton = card.querySelector('.btn-watch');
         const videoPreview = card.querySelector('.video-preview');
         const selectCheckbox = card.querySelector('.card-select-checkbox');
 
         playButton.addEventListener('click', () => openModal(index));
-        watchButton.addEventListener('click', () => openModal(index));
         videoPreview.addEventListener('click', () => openModal(index));
         videoPreview.style.cursor = 'pointer';
 
