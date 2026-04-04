@@ -107,6 +107,72 @@
                 </div>
             </div>
 
+            <!-- Media Toolbar (Unified) -->
+            <div class="media-toolbar">
+                <div class="media-filter-bar" role="tablist" aria-label="סינון לפי סוג מדיה">
+                    <button class="filter-btn active" data-filter="all" role="tab" aria-selected="true" aria-label="הצגת כל קבצי המדיה">הכל</button>
+                    <button class="filter-btn" data-filter="video" role="tab" aria-selected="false" aria-label="הצגת סרטונים בלבד">🎥 סרטונים</button>
+                    <button class="filter-btn" data-filter="image" role="tab" aria-selected="false" aria-label="הצגת תמונות בלבד">📸 תמונות</button>
+                </div>
+
+                <!-- Selection Actions (appears when items are selected) -->
+                <div id="selectionBar" class="selection-bar hidden">
+                    <div class="selection-info">
+                        <button id="selectAllBtn" class="btn-select-all">בחר הכל</button>
+                        <span id="selectionCount" class="selection-count">0 נבחרו</span>
+                    </div>
+                    <div class="selection-actions">
+                        <button id="uploadDriveBtn" class="btn-upload-drive" disabled>
+                            <span class="drive-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                    <path d="M7.71 3.5L1.15 15l4.58 7.5h13.54l4.58-7.5L17.29 3.5H7.71zm-.57 1h9.72l5.29 9.5H2.85l5.29-9.5zM5.29 15h13.42l-3.42 5.5H8.71L5.29 15z" fill="currentColor"/>
+                                </svg>
+                            </span>
+                            העלה ל-Drive
+                        </button>
+                        <button id="downloadZipBtn" class="btn-download-zip" disabled>
+                            <span class="zip-icon">📦</span>
+                            הורד כ-ZIP
+                        </button>
+                        <button id="clearSelectionBtn" class="btn-clear-selection">נקה בחירה</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="state-container">
+                <div class="loader-spinner"></div>
+                <p class="state-message">טוען ברכות...</p>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="state-container hidden">
+                <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 7l-7 5 7 5V7z"></path>
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                </svg>
+                <h2 class="state-title">אין ברכות עדיין</h2>
+                <p class="state-message">כשאורחים יעלו ברכות, הם יופיעו כאן</p>
+                <a href="index.html" class="btn-primary">חזרו לדף הראשי</a>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="state-container hidden">
+                <svg class="error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <h2 class="state-title">שגיאה בטעינת הברכות</h2>
+                <p class="state-message" id="errorMessage">אנא נסו לרענן את הדף</p>
+                <button class="btn-primary" onclick="window.location.reload()">רעננו</button>
+            </div>
+
+            <!-- Media Grid -->
+            <div id="videosGrid" class="videos-grid hidden">
+                <!-- Media cards (videos & images) will be dynamically inserted here -->
+            </div>
+
             <!-- QR Codes Section -->
             <div class="qr-section">
                 <h2 class="qr-section-title">🔗 קודי QR</h2>
@@ -151,70 +217,6 @@
                         </button>
                     </div>
                 </div>
-            </div>
-
-            <!-- Media Filter Bar -->
-            <div class="media-filter-bar" role="tablist" aria-label="סינון לפי סוג מדיה">
-                <button class="filter-btn active" data-filter="all" role="tab" aria-selected="true" aria-label="הצגת כל קבצי המדיה">הכל</button>
-                <button class="filter-btn" data-filter="video" role="tab" aria-selected="false" aria-label="הצגת סרטונים בלבד">🎥 סרטונים</button>
-                <button class="filter-btn" data-filter="image" role="tab" aria-selected="false" aria-label="הצגת תמונות בלבד">📸 תמונות</button>
-            </div>
-
-            <!-- Selection Bar (appears when items are selected) -->
-            <div id="selectionBar" class="selection-bar hidden">
-                <div class="selection-info">
-                    <button id="selectAllBtn" class="btn-select-all">בחר הכל</button>
-                    <span id="selectionCount" class="selection-count">0 נבחרו</span>
-                </div>
-                <div class="selection-actions">
-                    <button id="uploadDriveBtn" class="btn-upload-drive" disabled>
-                        <span class="drive-icon">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                                <path d="M7.71 3.5L1.15 15l4.58 7.5h13.54l4.58-7.5L17.29 3.5H7.71zm-.57 1h9.72l5.29 9.5H2.85l5.29-9.5zM5.29 15h13.42l-3.42 5.5H8.71L5.29 15z" fill="currentColor"/>
-                            </svg>
-                        </span>
-                        העלה ל-Drive
-                    </button>
-                    <button id="downloadZipBtn" class="btn-download-zip" disabled>
-                        <span class="zip-icon">📦</span>
-                        הורד כ-ZIP
-                    </button>
-                    <button id="clearSelectionBtn" class="btn-clear-selection">נקה בחירה</button>
-                </div>
-            </div>
-
-            <!-- Loading State -->
-            <div id="loadingState" class="state-container">
-                <div class="loader-spinner"></div>
-                <p class="state-message">טוען ברכות...</p>
-            </div>
-
-            <!-- Empty State -->
-            <div id="emptyState" class="state-container hidden">
-                <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M23 7l-7 5 7 5V7z"></path>
-                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-                </svg>
-                <h2 class="state-title">אין ברכות עדיין</h2>
-                <p class="state-message">כשאורחים יעלו ברכות, הם יופיעו כאן</p>
-                <a href="index.html" class="btn-primary">חזרו לדף הראשי</a>
-            </div>
-
-            <!-- Error State -->
-            <div id="errorState" class="state-container hidden">
-                <svg class="error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-                <h2 class="state-title">שגיאה בטעינת הברכות</h2>
-                <p class="state-message" id="errorMessage">אנא נסו לרענן את הדף</p>
-                <button class="btn-primary" onclick="window.location.reload()">רעננו</button>
-            </div>
-
-            <!-- Media Grid -->
-            <div id="videosGrid" class="videos-grid hidden">
-                <!-- Media cards (videos & images) will be dynamically inserted here -->
             </div>
         </main>
 
