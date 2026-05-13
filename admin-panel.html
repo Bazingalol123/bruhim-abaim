@@ -184,39 +184,23 @@
                     </div>
                 </div>
                 <div class="qr-cards-container">
-                    <!-- Photo QR Card -->
-                    <div class="qr-card">
-                        <h3 class="qr-card-title">📸 QR לצילום תמונה</h3>
-                        <div class="qr-canvas-wrapper">
-                            <div id="photoQrContainer"></div>
-                        </div>
-                        <p class="qr-url-display" id="photoQrUrl" dir="ltr"></p>
-                        <button class="btn-download-qr" id="downloadPhotoQr">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="7 10 12 15 17 10"></polyline>
-                                <line x1="12" y1="15" x2="12" y2="3"></line>
-                            </svg>
-                            הורדת QR
-                        </button>
-                    </div>
-                    <!-- Video QR Card -->
-                    <div class="qr-card">
-                        <h3 class="qr-card-title">🎥 QR לצילום סרטון</h3>
-                        <div class="qr-canvas-wrapper">
-                            <div id="videoQrContainer"></div>
-                        </div>
-                        <p class="qr-url-display" id="videoQrUrl" dir="ltr"></p>
-                        <button class="btn-download-qr" id="downloadVideoQr">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="7 10 12 15 17 10"></polyline>
-                                <line x1="12" y1="15" x2="12" y2="3"></line>
-                            </svg>
-                            הורדת QR
-                        </button>
-                    </div>
-                </div>
+    <!-- Single Capture QR Card -->
+    <div class="qr-card">
+        <h3 class="qr-card-title">📷 QR לצילום תמונה / סרטון</h3>
+        <div class="qr-canvas-wrapper">
+            <div id="captureQrContainer"></div>
+        </div>
+        <p class="qr-url-display" id="captureQrUrl" dir="ltr"></p>
+        <button class="btn-download-qr" id="downloadCaptureQr">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            הורדת QR
+        </button>
+    </div>
+</div>
             </div>
         </main>
 

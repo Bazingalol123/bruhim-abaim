@@ -1002,35 +1002,23 @@ async function uploadSelectedToDrive() {
 function initQRSection() {
     const qrBaseUrlInput = document.getElementById('qrBaseUrl');
     const generateQrBtn = document.getElementById('generateQrBtn');
-    const downloadPhotoQr = document.getElementById('downloadPhotoQr');
-    const downloadVideoQr = document.getElementById('downloadVideoQr');
+    const downloadCaptureQr = document.getElementById('downloadCaptureQr');
 
     if (!qrBaseUrlInput || !generateQrBtn) return;
 
-    // Pre-fill base URL: derive from current location, pointing to index.html
-    const origin = window.location.origin   ;
-    console.log('Current origin:', origin);
+    // Pre-fill base URL: derive from current location, pointing to capture.html
+    const origin = window.location.origin;
     const pathname = window.location.pathname;
-    console.log('Current pathname:', pathname); 
-    // Replace admin-panel.html (or any trailing file) with index.html
     const basePath = pathname.substring(0, pathname.lastIndexOf('/') + 1);
     qrBaseUrlInput.value = `${origin}${basePath}capture.html`;
-    console.log(qrBaseUrlInput.value);
 
-    // Generate QR codes on button click
     generateQrBtn.addEventListener('click', () => {
         generateQRCodes();
     });
 
-    // Download handlers
-    if (downloadPhotoQr) {
-        downloadPhotoQr.addEventListener('click', () => {
-            downloadQR('photoQrContainer', 'qr-photo.png');
-        });
-    }
-    if (downloadVideoQr) {
-        downloadVideoQr.addEventListener('click', () => {
-            downloadQR('videoQrContainer', 'qr-video.png');
+    if (downloadCaptureQr) {
+        downloadCaptureQr.addEventListener('click', () => {
+            downloadQR('captureQrContainer', 'qr-capture.png');
         });
     }
 
@@ -1038,9 +1026,6 @@ function initQRSection() {
     generateQRCodes();
 }
 
-/**
- * Generate QR codes for photo and video modes
- */
 function generateQRCodes() {
     const qrBaseUrlInput = document.getElementById('qrBaseUrl');
     if (!qrBaseUrlInput) return;
@@ -1057,45 +1042,25 @@ function generateQRCodes() {
     }
 
     try {
-        // Photo QR
-        const photoUrl = `${baseUrl}?mode=photo`;
-        const photoContainer = document.getElementById('photoQrContainer');
-        const photoUrlDisplay = document.getElementById('photoQrUrl');
-        if (photoContainer) {
-            photoContainer.innerHTML = '';
-            new QRCode(photoContainer, {
-                text: photoUrl,
+        const captureContainer = document.getElementById('captureQrContainer');
+        const captureUrlDisplay = document.getElementById('captureQrUrl');
+        if (captureContainer) {
+            captureContainer.innerHTML = '';
+            new QRCode(captureContainer, {
+                text: baseUrl,
                 width: 256,
                 height: 256,
                 colorDark: '#6b7b5e',
                 colorLight: '#ffffff'
             });
         }
-        if (photoUrlDisplay) {
-            photoUrlDisplay.textContent = photoUrl;
+        if (captureUrlDisplay) {
+            captureUrlDisplay.textContent = baseUrl;
         }
 
-        // Video QR
-        const videoUrl = `${baseUrl}?mode=video`;
-        const videoContainer = document.getElementById('videoQrContainer');
-        const videoUrlDisplay = document.getElementById('videoQrUrl');
-        if (videoContainer) {
-            videoContainer.innerHTML = '';
-            new QRCode(videoContainer, {
-                text: videoUrl,
-                width: 256,
-                height: 256,
-                colorDark: '#6b7b5e',
-                colorLight: '#ffffff'
-            });
-        }
-        if (videoUrlDisplay) {
-            videoUrlDisplay.textContent = videoUrl;
-        }
-
-        console.log('✅ QR codes generated successfully');
+        console.log('✅ QR code generated successfully');
     } catch (error) {
-        console.error('❌ Error generating QR codes:', error);
+        console.error('❌ Error generating QR code:', error);
     }
 }
 
