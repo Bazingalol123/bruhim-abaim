@@ -294,6 +294,37 @@ class VideoUploader {
     }
 
     /**
+     * Upload with automatic retry on transient failures.
+     * @param {Function} uploadFn - async function that performs the upload
+     * @param {Object} options - { maxAttempts = 3, baseDelayMs = 1500 }
+     * @returns {Promise<*>} result of uploadFn
+     */
+    async uploadWithRetry(uploadFn, { maxAttempts = 3, baseDelayMs = 1500 } = {}) {
+        let lastError;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return await uploadFn();
+            } catch (err) {
+                lastError = err;
+                console.warn(`Upload attempt ${attempt}/${maxAttempts} failed:`, err);
+
+                const terminalCodes = ['storage/unauthorized', 'storage/unauthenticated', 'storage/canceled', 'storage/quota-exceeded'];
+                if (err.code && terminalCodes.includes(err.code)) {
+                    throw err;
+                }
+
+                if (attempt === maxAttempts) {
+                    throw err;
+                }
+
+                const delay = baseDelayMs * Math.pow(2, attempt - 1) + Math.random() * 500;
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+        throw lastError;
+    }
+
+    /**
      * Cancel ongoing upload
      */
     cancelUpload() {

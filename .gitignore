@@ -4,3 +4,7 @@ README.md
 storage.rules
 cors.json
 node_modules/
+tests/
+docs/
+*.log
+*.env

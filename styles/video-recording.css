@@ -460,7 +460,7 @@
     }
 }
 
-/* ── Media Buttons Container (Image + Video selection) ──────────────── */
+/* ── Media Buttons Container ─────────────────────────────────────────── */
 .media-buttons-container {
     display: flex;
     flex-direction: column;
@@ -471,66 +471,63 @@
     margin: 0 auto;
 }
 
-/* Section label for capture buttons */
-.media-section-label {
-    font-family: 'Liebling', serif;
-    font-size: 1.1rem;
-    color: #6b7b5e;
-    margin-bottom: 0.5rem;
+/* ── Review Screen: Name Input ───────────────────────────────────────── */
+.review-name-container {
+    width: 100%;
+    max-width: 400px;
+    margin: 1.5rem auto;
     text-align: center;
 }
 
-/* Buttons row - horizontal layout */
-.media-buttons-row {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: center;
-    width: 100%;
+.review-name-container .form-label {
+    font-size: clamp(0.95rem, 2.5vw, 1.05rem);
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
 }
 
-.media-buttons-row .btn-media-select {
-    flex: 1;
-    max-width: 200px;
+.review-name-container .form-input {
+    margin-bottom: 0;
 }
 
-/* Divider between capture and gallery sections */
-.media-divider {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    margin: 1rem 0;
+/* ── Change Name Link ────────────────────────────────────────────────── */
+.change-name-link {
+    background: none;
+    border: none;
+    color: var(--sage-green);
+    font-family: 'Liebling', sans-serif;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0.25rem 0.5rem;
 }
 
-.divider-line {
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(to right, transparent, #c5cfc0, transparent);
+.change-name-link:hover {
+    color: #5a6d4d;
 }
 
-.divider-text {
-    font-family: 'Liebling', serif;
+/* ── Inline Error (review screen — preserves blob) ───────────────────── */
+.review-inline-error {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 0.875rem 1.25rem;
+    border-radius: 0.5rem;
+    border: 1px solid #f5c6cb;
+    margin-top: 1rem;
+    text-align: center;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.review-inline-error.hidden {
+    display: none;
+}
+
+.review-inline-error p {
+    margin: 0;
     font-size: 0.95rem;
-    color: #8a9880;
-    white-space: nowrap;
-}
-
-/* Gallery buttons - slightly different styling */
-.btn-gallery {
-    background: transparent !important;
-    border: 1.5px solid #a8b89c !important;
-    color: #6b7b5e !important;
-}
-
-.btn-gallery:hover:not(:disabled) {
-    background: rgba(168, 184, 156, 0.1) !important;
-    border-color: #8a9880 !important;
-}
-
-.btn-gallery:disabled {
-    opacity: 0.4;
-    border-color: #ccc !important;
-    color: #999 !important;
+    line-height: 1.5;
 }
 
 /* ── Media Select Buttons (shared styles) ───────────────────────────── */
