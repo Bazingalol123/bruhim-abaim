@@ -15,6 +15,10 @@ import {
 
 const STORAGE_KEY_GUEST_NAME = 'wedding_guest_name_v1';
 
+// Maximum upload size in bytes. Adjust if hosting budget changes.
+const MAX_UPLOAD_SIZE_MB = 100;
+const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+
 class VideoUI {
     constructor() {
         this.recorder = new VideoRecorder();
@@ -153,6 +157,10 @@ class VideoUI {
 
         // Direct mode continue button
         this.directModeContinueBtn = document.getElementById('directModeContinueBtn');
+
+        // Size hint
+        this.mediaSizeHint = document.getElementById('mediaSizeHint');
+        this.mediaSizeHintText = document.getElementById('mediaSizeHintText');
     }
 
     /**
@@ -215,7 +223,10 @@ class VideoUI {
         // Record another button
         if (this.recordAnotherBtn) {
             this.recordAnotherBtn.addEventListener('click', () => {
-                this.reset();
+                // Open native picker immediately — same pattern as handleRetake.
+                // State cleanup happens in handleMediaFileSelected only when a new file commits.
+                // CRITICAL: synchronous .click() inside user gesture for iOS Safari.
+                this.mediaFileInput.click();
             });
         }
 
@@ -233,8 +244,21 @@ class VideoUI {
         handleMediaFileSelected(event) {
             const file = event.target.files && event.target.files[0];
             if (!file) return;
-            
+
+            // Size cap check — bail early on huge files (e.g., 4K 60fps videos from Android gallery)
+            if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+                const actualMB = Math.round(file.size / (1024 * 1024));
+                this.showError(
+                    `הקובץ גדול מדי (${actualMB} מ"ב). אפשר להעלות עד ${MAX_UPLOAD_SIZE_MB} מ"ב. ` +
+                    `נסו לצלם סרטון קצר יותר או תמונה באיכות נמוכה יותר.`
+                );
+                // Reset input so user can pick again
+                event.target.value = '';
+                return;
+            }
+
             // New file is committed. NOW clean up previous capture state.
+            this.hideSizeHint();
         if (this.imagePreview && this.imagePreview.src) {
             URL.revokeObjectURL(this.imagePreview.src);
             this.imagePreview.src = '';
@@ -331,6 +355,10 @@ class VideoUI {
     showImageReview(imageData) {
         this.currentMediaType = 'image';
 
+        if (this.sectionHeader) {
+            this.sectionHeader.classList.remove('hidden');
+        }
+
         if (this.videoPlayback) {
             this.videoPlayback.classList.add('hidden');
             this.videoPlayback.pause();
@@ -351,16 +379,38 @@ class VideoUI {
         }
 
         this.showStep('review');
+        this.showSizeHint(imageData.blob.size);
     }
 
     /**
      * Handle upload media to Firebase (video or image)
      */
     async handleUpload() {
-        if (this.currentMediaType === 'image') {
-            await this.handleImageUpload();
-        } else {
-            await this.handleVideoUpload();
+        // Guard against double-tap during in-flight upload.
+        // The visual disabled state is set later inside the type-specific handlers,
+        // which leaves a small race window. This early-return closes it.
+        if (this.isUploading) {
+            console.log('⚠️ Upload already in progress, ignoring duplicate request');
+            return;
+        }
+
+        // Set flag immediately so any further taps in the same frame bail
+        this.isUploading = true;
+
+        // Disable button immediately, before any async work
+        if (this.uploadVideoBtn) this.uploadVideoBtn.disabled = true;
+
+        try {
+            if (this.currentMediaType === 'image') {
+                await this.handleImageUpload();
+            } else {
+                await this.handleVideoUpload();
+            }
+        } finally {
+            // The type-specific handlers also reset this in their own finally blocks,
+            // which is harmless. Doing it here too guarantees it gets reset even if
+            // a handler throws synchronously before its own try/finally is entered.
+            this.isUploading = false;
         }
     }
 
@@ -615,6 +665,10 @@ class VideoUI {
     showReview() {
         this.currentMediaType = 'video';
 
+        if (this.sectionHeader) {
+            this.sectionHeader.classList.remove('hidden');
+        }
+
         if (this.videoPlayback) {
             this.videoPlayback.classList.remove('hidden');
         }
@@ -648,6 +702,7 @@ class VideoUI {
                     }
                 }, 1000);
             };
+            this.showSizeHint(this.recordedBlob.size);
         }
     }
 
@@ -757,6 +812,42 @@ class VideoUI {
         this.recorder.cleanup();
     }
 
+    showSizeHint(sizeBytes) {
+        if (!this.mediaSizeHint || !this.mediaSizeHintText) return;
+
+        const sizeMB = sizeBytes / (1024 * 1024);
+
+        let sizeStr;
+        if (sizeMB < 1) {
+            sizeStr = `${Math.round(sizeBytes / 1024)} ק"ב`;
+        } else {
+            sizeStr = `${sizeMB.toFixed(1)} מ"ב`;
+        }
+
+        // Conservative upload speed estimate: ~1 Mbps = ~0.125 MB/s
+        // (wedding hall WiFi is usually slow and shared)
+        const estimatedSeconds = Math.max(2, Math.round(sizeMB / 0.125));
+
+        let timeStr;
+        if (estimatedSeconds < 10) {
+            timeStr = 'יעלה תוך כמה שניות';
+        } else if (estimatedSeconds < 60) {
+            timeStr = `יעלה תוך כ-${estimatedSeconds} שניות`;
+        } else {
+            const minutes = Math.ceil(estimatedSeconds / 60);
+            timeStr = `יעלה תוך כ-${minutes} דקות`;
+        }
+
+        this.mediaSizeHintText.textContent = `📦 ${sizeStr} · ${timeStr}`;
+        this.mediaSizeHint.classList.remove('hidden');
+    }
+
+    hideSizeHint() {
+        if (this.mediaSizeHint) {
+            this.mediaSizeHint.classList.add('hidden');
+        }
+    }
+
     /**
      * Reset to initial state (name persists across uploads)
      */
@@ -787,6 +878,7 @@ class VideoUI {
         if (this.sectionHeader) {
             this.sectionHeader.classList.remove('hidden');
         }
+        this.hideSizeHint();
         if (this.videoPlayback) {
             if (this.videoPlayback.src) {
                 URL.revokeObjectURL(this.videoPlayback.src);

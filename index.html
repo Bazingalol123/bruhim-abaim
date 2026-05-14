@@ -8,6 +8,18 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="images/logo.png">
 
+    <!-- PWA manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Theme color for browser UI -->
+    <meta name="theme-color" content="#6B7F5C">
+
+    <!-- iOS-specific PWA support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="אודליה ועומר">
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+
     <!-- Open Graph Meta Tags for Social Media Sharing -->
     <meta property="og:title" content="אודליה ועומר | Odelya & Omer - Wedding">
     <meta property="og:description" content="הגעתם - עכשיו מתחילים! Welcome to our wedding celebration">
@@ -110,6 +122,11 @@
                             class="media-preview-image hidden"
                             alt="תצוגה מקדימה של התמונה"
                         />
+                    </div>
+
+                    <!-- Size hint — populated dynamically in JS once a file is picked -->
+                    <div id="mediaSizeHint" class="media-size-hint hidden">
+                        <span id="mediaSizeHintText"></span>
                     </div>
 
                     <!-- Name input (optional, captured right before upload) -->
@@ -261,5 +278,16 @@
     <!-- Video Recording Scripts -->
     <link rel="stylesheet" href="styles/video-recording.css">
     <script type="module" src="js/video-recording-main.js"></script>
+
+    <!-- Service worker registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('[SW] Registered:', reg.scope))
+                    .catch(err => console.warn('[SW] Registration failed:', err));
+            });
+        }
+    </script>
 </body>
 </html>
