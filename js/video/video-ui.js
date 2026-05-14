@@ -230,9 +230,24 @@ class VideoUI {
     /**
      * Detect image vs video from a picked file and dispatch to appropriate handler
      */
-    handleMediaFileSelected(event) {
-        const file = event.target.files && event.target.files[0];
-        if (!file) return;
+        handleMediaFileSelected(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            
+            // New file is committed. NOW clean up previous capture state.
+        if (this.imagePreview && this.imagePreview.src) {
+            URL.revokeObjectURL(this.imagePreview.src);
+            this.imagePreview.src = '';
+        }
+        if (this.videoPlayback && this.videoPlayback.src) {
+            URL.revokeObjectURL(this.videoPlayback.src);
+            this.videoPlayback.src = '';
+        }
+        this.recordedBlob = null;
+        this.currentImageData = null;
+        this.currentMediaType = null;
+        this.currentMediaSource = null;
+
 
         const mimeType = file.type || '';
         let isVideo = mimeType.startsWith('video/');
@@ -581,26 +596,19 @@ class VideoUI {
     }
 
     /**
-     * Handle retake — go back to media selection step (blob is discarded)
+     * Handle retake — re-open native picker directly from review screen.
+     * State is NOT cleared here. If user cancels the picker, they stay on
+     * the current review with their existing media intact. State only
+     * gets replaced when a new file is actually selected (see handleMediaFileSelected).
      */
     handleRetake() {
-        if (this.imagePreview && this.imagePreview.src) {
-            URL.revokeObjectURL(this.imagePreview.src);
-            this.imagePreview.src = '';
-        }
+        // Hide any inline error from a previous failed upload attempt
+        this.hideReviewError();
 
-        this.currentMediaType = null;
-        this.currentImageData = null;
-        this.recordedBlob = null;
-        this.currentMediaSource = null;
-
-        this.showStep('media');
-
-        if (this.directMode) {
-            this.activateDirectMode();
-        }
+        // CRITICAL: synchronous .click() inside user gesture for iOS Safari.
+        // Do NOT await anything before this line.
+        this.mediaFileInput.click();
     }
-
     /**
      * Show review step with video playback
      */
