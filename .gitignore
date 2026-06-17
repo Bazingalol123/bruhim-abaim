@@ -3,6 +3,7 @@ README.md
 *.rules
 storage.rules
 cors.json
+firebase.json
 node_modules/
 tests/
 docs/

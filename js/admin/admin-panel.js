@@ -15,13 +15,16 @@ import {
     ref,
     listAll,
     getDownloadURL,
-    getMetadata
+    getMetadata,
+    deleteObject
 } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js';
 import {
     collection,
     getDocs,
     query,
-    orderBy
+    orderBy,
+    deleteDoc,
+    doc
 } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
 
 // DOM Elements
@@ -132,6 +135,7 @@ function setupEventListeners() {
     document.getElementById('selectAllBtn')?.addEventListener('click', selectAllVisible);
     document.getElementById('downloadZipBtn')?.addEventListener('click', downloadSelectedAsZip);
     document.getElementById('uploadDriveBtn')?.addEventListener('click', handleDriveUpload);
+    document.getElementById('deleteSelectedBtn')?.addEventListener('click', deleteSelected);
     document.getElementById('clearSelectionBtn')?.addEventListener('click', clearSelection);
 }
 
@@ -341,6 +345,7 @@ function createMediaCard(item, index) {
                     </svg>
                     הורידו
                 </a>
+                <button class="btn-delete-small" data-index="${index}">🗑️ מחק</button>
             </div>
         `;
 
@@ -356,6 +361,11 @@ function createMediaCard(item, index) {
         selectCheckbox.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleSelection(index);
+        });
+
+        card.querySelector('.btn-delete-small').addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteItem(index);
         });
 
     } else {
@@ -409,6 +419,7 @@ function createMediaCard(item, index) {
                     </svg>
                     הורידו
                 </a>
+                <button class="btn-delete-small" data-index="${index}">🗑️ מחק</button>
             </div>
         `;
 
@@ -424,6 +435,11 @@ function createMediaCard(item, index) {
         selectCheckbox.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleSelection(index);
+        });
+
+        card.querySelector('.btn-delete-small').addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteItem(index);
         });
     }
 
@@ -661,6 +677,7 @@ function updateSelectionUI() {
     });
     
     const uploadDriveBtn = document.getElementById('uploadDriveBtn');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
 
     // Show/hide selection bar
     if (selectedItems.size > 0) {
@@ -668,10 +685,12 @@ function updateSelectionUI() {
         selectionCount.textContent = `${selectedItems.size} נבחרו`;
         downloadZipBtn.disabled = false;
         if (uploadDriveBtn) uploadDriveBtn.disabled = false;
+        if (deleteSelectedBtn) deleteSelectedBtn.disabled = false;
     } else {
         selectionBar.classList.add('hidden');
         downloadZipBtn.disabled = true;
         if (uploadDriveBtn) uploadDriveBtn.disabled = true;
+        if (deleteSelectedBtn) deleteSelectedBtn.disabled = true;
     }
     
     // Update "select all" button text
@@ -991,6 +1010,115 @@ async function uploadSelectedToDrive() {
         } else {
             alert('שגיאה בהעלאה ל-Google Drive. נסו שנית.');
         }
+    }
+}
+
+// ── Delete ───────────────────────────────────────────────────────────
+
+/**
+ * Extract Firebase Storage path from a download URL.
+ * e.g. https://firebasestorage.googleapis.com/v0/b/BUCKET/o/wedding-images%2Fxxx.jpg?...
+ * → "wedding-images/xxx.jpg"
+ */
+function getStoragePathFromUrl(url) {
+    try {
+        const match = url.match(/\/o\/(.+?)(\?|$)/);
+        return match ? decodeURIComponent(match[1]) : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Delete a single media item (Storage + Firestore) with confirmation.
+ */
+async function deleteItem(index) {
+    const item = mediaItems[index];
+    if (!item) return;
+
+    const confirmed = confirm(`האם למחוק את הקובץ של ${item.guestName}?`);
+    if (!confirmed) return;
+
+    try {
+        const storagePath = getStoragePathFromUrl(item.url);
+        if (storagePath) {
+            await deleteObject(ref(storage, storagePath));
+        }
+        await deleteDoc(doc(db, 'videoMetadata', item.id));
+
+        selectedItems.delete(index);
+        mediaItems.splice(index, 1);
+        updateStats();
+        displayMedia();
+        updateSelectionUI();
+        if (mediaItems.length === 0) showState('empty');
+    } catch (err) {
+        console.error('Delete failed:', err);
+        alert('שגיאה במחיקה. נסו שנית.');
+    }
+}
+
+/**
+ * Delete all currently selected items with confirmation and progress overlay.
+ */
+async function deleteSelected() {
+    if (selectedItems.size === 0) return;
+
+    const count = selectedItems.size;
+    const confirmed = confirm(`האם למחוק ${count} ${count === 1 ? 'קובץ' : 'קבצים'}? פעולה זו אינה הפיכה.`);
+    if (!confirmed) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'zip-progress-overlay';
+    overlay.innerHTML = `
+        <div class="zip-progress-card">
+            <h3>🗑️ מוחק קבצים...</h3>
+            <div class="zip-progress-bar">
+                <div class="zip-progress-fill" id="deleteProgressFill"></div>
+            </div>
+            <p class="zip-progress-text" id="deleteProgressText">מוחק 0 מתוך ${count}...</p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const progressFill = document.getElementById('deleteProgressFill');
+    const progressText = document.getElementById('deleteProgressText');
+
+    // Sort descending so splice doesn't shift indices of later items
+    const indices = Array.from(selectedItems).sort((a, b) => b - a);
+    let completed = 0;
+    let failed = 0;
+
+    for (const index of indices) {
+        const item = mediaItems[index];
+        if (!item) { completed++; continue; }
+
+        try {
+            const storagePath = getStoragePathFromUrl(item.url);
+            if (storagePath) {
+                await deleteObject(ref(storage, storagePath));
+            }
+            await deleteDoc(doc(db, 'videoMetadata', item.id));
+            mediaItems.splice(index, 1);
+        } catch (err) {
+            console.warn(`Failed to delete item ${index}:`, err);
+            failed++;
+        }
+
+        completed++;
+        progressFill.style.width = `${Math.round((completed / indices.length) * 100)}%`;
+        progressText.textContent = `מוחק ${completed} מתוך ${indices.length}...`;
+    }
+
+    document.body.removeChild(overlay);
+    selectedItems.clear();
+    updateStats();
+    displayMedia();
+    updateSelectionUI();
+    if (mediaItems.length === 0) showState('empty');
+
+    if (failed > 0) {
+        alert(`${completed - failed} קבצים נמחקו. ${failed} נכשלו.`);
     }
 }
 

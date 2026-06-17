@@ -86,6 +86,7 @@
                             type="file"
                             id="mediaFileInput"
                             accept="image/*,video/*"
+                            multiple
                             class="sr-only-input"
                             aria-label="העלו תמונה או סרטון"
                         />
@@ -101,6 +102,11 @@
                                 <span class="btn-icon">📷</span>
                                 <span class="btn-text">המשיכו</span>
                             </button>
+                        </div>
+
+                        <div class="upload-hints">
+                            <p class="upload-hint">📸 רק אנחנו רואים את מה שתעלו — תתפרעו!</p>
+                            <p class="upload-hint">🎬 סרטונים עד 45 שניות ועד 100 מ״ב — קצר וקולע</p>
                         </div>
                     </div>
                 </div>
@@ -122,7 +128,11 @@
                             class="media-preview-image hidden"
                             alt="תצוגה מקדימה של התמונה"
                         />
+                        <div id="multiFileSummary" class="multi-file-summary hidden"></div>
                     </div>
+
+                    <!-- Skipped files notice — shown when some files exceeded the size cap -->
+                    <div id="skippedFilesNotice" class="skipped-files-notice hidden"></div>
 
                     <!-- Size hint — populated dynamically in JS once a file is picked -->
                     <div id="mediaSizeHint" class="media-size-hint hidden">
@@ -200,6 +210,9 @@
                         </svg>
                         <h3>משהו השתבש</h3>
                         <p id="errorMessage">אנא נסו שוב מאוחר יותר.</p>
+                        <button id="errorDownloadBtn" class="btn btn-secondary hidden">
+                            💾 שמרו את הסרטון אצלכם
+                        </button>
                         <button id="tryAgainBtn" class="btn btn-primary">
                             נסו שוב
                         </button>
