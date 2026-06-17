@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://firebasestorage.googleapis.com; media-src 'self' blob: https://firebasestorage.googleapis.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://accounts.google.com https://www.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com; font-src 'self' https://fonts.gstatic.com https://api.fontshare.com https://cdn.fontshare.com; frame-src 'self' https://accounts.google.com https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
     <title>אודליה ועומר 💍 צלמו תמונה</title>
     <link rel="icon" type="image/png" href="images/logo.png">
 
@@ -117,6 +118,7 @@
 
 <!-- Firebase compat SDK (async) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
@@ -135,6 +137,12 @@
     };
 
     const app = firebase.initializeApp(firebaseConfig);
+    // App Check (reCAPTCHA v3) — required once enforcement is enabled in the
+    // Firebase Console. Must be activated BEFORE any other Firebase service.
+    firebase.appCheck().activate(
+        new firebase.appCheck.ReCaptchaV3Provider('6LfMBSUtAAAAAKAwpp2Dlo3TaMLmEg22fbI1_mMy'),
+        true
+    );
     const storage = firebase.storage();
     const db = firebase.firestore();
 
@@ -217,10 +225,7 @@
 
     // ── Utility: UUID ────────────────────────────────────────────────
     function uuid() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            var r = Math.random() * 16 | 0;
-            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-        });
+        return crypto.randomUUID();
     }
 
     // ── Utility: detect device ───────────────────────────────────────

@@ -64,6 +64,13 @@ let selectedItems = new Set(); // Track selected item indices
 let googleAccessToken = null; // Google OAuth access token
 let tokenClient = null; // Google Identity Services token client
 
+// Only render media whose URL points at our Storage bucket. Blocks XSS via
+// a Firestore doc whose mediaUrl was crafted as javascript:/data:/attacker URL.
+const SAFE_URL_PREFIX = 'https://firebasestorage.googleapis.com/v0/b/wedding-prog.firebasestorage.app/';
+function isSafeMediaUrl(url) {
+    return typeof url === 'string' && url.startsWith(SAFE_URL_PREFIX);
+}
+
 /**
  * Initialize the admin panel
  */
@@ -276,172 +283,161 @@ function displayMedia() {
     });
 }
 
+// Static SVG markup — no user data. Safe to inject via innerHTML.
+const SVG_SEARCH_PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>';
+const SVG_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+const SVG_CALENDAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>';
+const SVG_DOWNLOAD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>';
+
 /**
- * Create a media card element (video or image)
+ * Create a media card element (video or image).
+ * All user-controlled values (item.url, item.guestName, item.name) are
+ * assigned via DOM properties — never interpolated into innerHTML.
  */
 function createMediaCard(item, index) {
     const card = document.createElement('div');
     card.className = 'video-card';
     card.setAttribute('data-media-type', item.mediaType);
-    card.setAttribute('data-index', index);
+    card.setAttribute('data-index', String(index));
 
-    // Format date
+    // Refuse to render items whose URL doesn't point at our bucket.
+    if (!isSafeMediaUrl(item.url)) {
+        const warn = document.createElement('div');
+        warn.className = 'video-info';
+        const h3 = document.createElement('h3');
+        h3.className = 'video-guest-name';
+        h3.textContent = item.guestName || 'אורח';
+        const p = document.createElement('p');
+        p.textContent = '⚠️ כתובת מדיה לא חוקית - נחסם';
+        warn.appendChild(h3);
+        warn.appendChild(p);
+        card.appendChild(warn);
+
+        const actions = document.createElement('div');
+        actions.className = 'video-actions';
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn-delete-small';
+        deleteBtn.textContent = '🗑️ מחק';
+        deleteBtn.addEventListener('click', () => deleteItem(index));
+        actions.appendChild(deleteBtn);
+        card.appendChild(actions);
+        return card;
+    }
+
     const formattedDate = formatDate(item.uploadDate);
     const formattedTime = formatTime(item.uploadDate);
-
-    // Format file size
     const sizeMB = (item.size / (1024 * 1024)).toFixed(1);
+    const isImage = item.mediaType === 'image';
 
-    if (item.mediaType === 'image') {
-        card.innerHTML = `
-            <div class="video-thumbnail">
-                <div class="card-select-checkbox" data-index="${index}"></div>
-                <img
-                    class="media-thumbnail-image" 
-                    src="${item.url}" 
-                    alt="תמונה מאת ${escapeHtml(item.guestName)}"
-                    loading="lazy"
-                />
-                <div class="video-overlay">
-                    <button class="play-button" data-index="${index}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                            <line x1="11" y1="8" x2="11" y2="14"></line>
-                            <line x1="8" y1="11" x2="14" y2="11"></line>
-                        </svg>
-                    </button>
-                </div>
-                <span class="media-type-badge" aria-label="סוג: תמונה">📸</span>
-            </div>
-            <div class="video-info">
-                <h3 class="video-guest-name">${escapeHtml(item.guestName)}</h3>
-                <div class="video-meta">
-                    <span class="video-date">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                        </svg>
-                        ${formattedDate} ${formattedTime}
-                    </span>
-                    <span class="video-size">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        ${sizeMB} MB
-                    </span>
-                </div>
-            </div>
-            <div class="video-actions">
-                <a href="${item.url}" download="${item.name}" class="btn-download-small">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                    הורידו
-                </a>
-                <button class="btn-delete-small" data-index="${index}">🗑️ מחק</button>
-            </div>
-        `;
+    // Thumbnail
+    const thumb = document.createElement('div');
+    thumb.className = 'video-thumbnail';
 
-        // Add event listeners for image card
-        const playButton = card.querySelector('.play-button');
-        const imgThumbnail = card.querySelector('.media-thumbnail-image');
-        const selectCheckbox = card.querySelector('.card-select-checkbox');
+    const checkbox = document.createElement('div');
+    checkbox.className = 'card-select-checkbox';
+    checkbox.setAttribute('data-index', String(index));
+    checkbox.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSelection(index);
+    });
+    thumb.appendChild(checkbox);
 
-        playButton.addEventListener('click', () => openModal(index));
-        imgThumbnail.addEventListener('click', () => openModal(index));
-        imgThumbnail.style.cursor = 'pointer';
-
-        selectCheckbox.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleSelection(index);
-        });
-
-        card.querySelector('.btn-delete-small').addEventListener('click', (e) => {
-            e.stopPropagation();
-            deleteItem(index);
-        });
-
+    let mediaEl;
+    if (isImage) {
+        mediaEl = document.createElement('img');
+        mediaEl.className = 'media-thumbnail-image';
+        mediaEl.src = item.url;
+        mediaEl.alt = `תמונה מאת ${item.guestName}`;
+        mediaEl.loading = 'lazy';
     } else {
-        // Video card (existing behavior)
-        const formattedDuration = formatDuration(item.duration);
-
-        card.innerHTML = `
-            <div class="video-thumbnail">
-                <div class="card-select-checkbox" data-index="${index}"></div>
-                <video class="video-preview" preload="metadata" muted>
-                    <source src="${item.url}#t=0.5" type="${item.contentType}">
-                </video>
-                <div class="video-overlay">
-                    <button class="play-button" data-index="${index}">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z"/>
-                        </svg>
-                    </button>
-                </div>
-                ${item.duration > 0 ? `<div class="video-duration">🎥 ${formattedDuration}</div>` : ''}
-                <span class="media-type-badge" aria-label="סוג: סרטון">🎥</span>
-            </div>
-            <div class="video-info">
-                <h3 class="video-guest-name">${escapeHtml(item.guestName)}</h3>
-                <div class="video-meta">
-                    <span class="video-date">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                        </svg>
-                        ${formattedDate} ${formattedTime}
-                    </span>
-                    <span class="video-size">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="7 10 12 15 17 10"></polyline>
-                            <line x1="12" y1="15" x2="12" y2="3"></line>
-                        </svg>
-                        ${sizeMB} MB
-                    </span>
-                </div>
-            </div>
-            <div class="video-actions">
-                <a href="${item.url}" download="${item.name}" class="btn-download-small">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                    הורידו
-                </a>
-                <button class="btn-delete-small" data-index="${index}">🗑️ מחק</button>
-            </div>
-        `;
-
-        // Add event listeners for video card
-        const playButton = card.querySelector('.play-button');
-        const videoPreview = card.querySelector('.video-preview');
-        const selectCheckbox = card.querySelector('.card-select-checkbox');
-
-        playButton.addEventListener('click', () => openModal(index));
-        videoPreview.addEventListener('click', () => openModal(index));
-        videoPreview.style.cursor = 'pointer';
-
-        selectCheckbox.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleSelection(index);
-        });
-
-        card.querySelector('.btn-delete-small').addEventListener('click', (e) => {
-            e.stopPropagation();
-            deleteItem(index);
-        });
+        mediaEl = document.createElement('video');
+        mediaEl.className = 'video-preview';
+        mediaEl.preload = 'metadata';
+        mediaEl.muted = true;
+        const source = document.createElement('source');
+        source.src = `${item.url}#t=0.5`;
+        source.type = item.contentType;
+        mediaEl.appendChild(source);
     }
+    mediaEl.style.cursor = 'pointer';
+    mediaEl.addEventListener('click', () => openModal(index));
+    thumb.appendChild(mediaEl);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'video-overlay';
+    const playButton = document.createElement('button');
+    playButton.className = 'play-button';
+    playButton.setAttribute('data-index', String(index));
+    playButton.innerHTML = isImage ? SVG_SEARCH_PLUS : SVG_PLAY;
+    playButton.addEventListener('click', () => openModal(index));
+    overlay.appendChild(playButton);
+    thumb.appendChild(overlay);
+
+    if (!isImage && item.duration > 0) {
+        const dur = document.createElement('div');
+        dur.className = 'video-duration';
+        dur.textContent = `🎥 ${formatDuration(item.duration)}`;
+        thumb.appendChild(dur);
+    }
+
+    const badge = document.createElement('span');
+    badge.className = 'media-type-badge';
+    badge.setAttribute('aria-label', isImage ? 'סוג: תמונה' : 'סוג: סרטון');
+    badge.textContent = isImage ? '📸' : '🎥';
+    thumb.appendChild(badge);
+
+    card.appendChild(thumb);
+
+    // Info
+    const info = document.createElement('div');
+    info.className = 'video-info';
+
+    const nameH3 = document.createElement('h3');
+    nameH3.className = 'video-guest-name';
+    nameH3.textContent = item.guestName;
+    info.appendChild(nameH3);
+
+    const meta = document.createElement('div');
+    meta.className = 'video-meta';
+
+    const dateSpan = document.createElement('span');
+    dateSpan.className = 'video-date';
+    dateSpan.innerHTML = SVG_CALENDAR;
+    dateSpan.appendChild(document.createTextNode(` ${formattedDate} ${formattedTime}`));
+    meta.appendChild(dateSpan);
+
+    const sizeSpan = document.createElement('span');
+    sizeSpan.className = 'video-size';
+    sizeSpan.innerHTML = SVG_DOWNLOAD;
+    sizeSpan.appendChild(document.createTextNode(` ${sizeMB} MB`));
+    meta.appendChild(sizeSpan);
+
+    info.appendChild(meta);
+    card.appendChild(info);
+
+    // Actions
+    const actions = document.createElement('div');
+    actions.className = 'video-actions';
+
+    const downloadA = document.createElement('a');
+    downloadA.className = 'btn-download-small';
+    downloadA.href = item.url;
+    downloadA.download = item.name;
+    downloadA.innerHTML = SVG_DOWNLOAD;
+    downloadA.appendChild(document.createTextNode(' הורידו'));
+    actions.appendChild(downloadA);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn-delete-small';
+    deleteBtn.setAttribute('data-index', String(index));
+    deleteBtn.textContent = '🗑️ מחק';
+    deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteItem(index);
+    });
+    actions.appendChild(deleteBtn);
+
+    card.appendChild(actions);
 
     return card;
 }
@@ -451,7 +447,15 @@ function createMediaCard(item, index) {
  */
 function openModal(index) {
     const item = mediaItems[index];
-    
+
+    // Hard guard — a Firestore doc with a hostile mediaUrl would otherwise
+    // load via <video src>, <img src>, or <a href> in the modal.
+    if (!isSafeMediaUrl(item.url)) {
+        console.warn('Refusing to open modal for unsafe URL:', item.url);
+        alert('כתובת המדיה לא חוקית. הקובץ נחסם.');
+        return;
+    }
+
     // Set modal header content
     modalGuestName.textContent = item.guestName;
     modalDate.textContent = formatDate(item.uploadDate);
@@ -634,15 +638,6 @@ function formatTime(dateString) {
     }
 }
 
-/**
- * Escape HTML to prevent XSS
- */
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 // ── Multi-Select & ZIP Download ──────────────────────────────────────
 
 /**
@@ -758,16 +753,19 @@ async function downloadSelectedAsZip() {
         
         for (const index of selectedArray) {
             const item = mediaItems[index];
-            if (!item || !item.url) continue;
-            
+            if (!item || !isSafeMediaUrl(item.url)) {
+                console.warn(`Skipping item ${index} — unsafe or missing URL`);
+                continue;
+            }
+
             try {
                 const response = await fetch(item.url);
                 const blob = await response.blob();
-                
+
                 // Create a unique filename
                 const extension = item.mediaType === 'image' ? 'jpg' : 'webm';
                 const fileName = `${item.guestName || 'guest'}_${index}.${extension}`;
-                
+
                 zip.file(fileName, blob);
             } catch (fetchErr) {
                 console.warn(`Failed to fetch item ${index}:`, fetchErr);
@@ -955,8 +953,11 @@ async function uploadSelectedToDrive() {
         
         for (const index of selectedArray) {
             const item = mediaItems[index];
-            if (!item || !item.url) continue;
-            
+            if (!item || !isSafeMediaUrl(item.url)) {
+                console.warn(`Skipping item ${index} — unsafe or missing URL`);
+                continue;
+            }
+
             const extension = item.mediaType === 'image' ? 'jpg' : 'webm';
             const fileName = `${item.guestName || 'guest'}_${index}.${extension}`;
             const mimeType = item.mediaType === 'image' ? 'image/jpeg' : 'video/webm';
