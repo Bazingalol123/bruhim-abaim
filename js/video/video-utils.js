@@ -5,8 +5,8 @@
 
 // ── Image & Video Constants ──────────────────────────────────────────
 export const MAX_VIDEO_DURATION = 45; // seconds
-export const IMAGE_MAX_DIMENSION = 4096;
-export const IMAGE_QUALITY = 0.92;
+export const IMAGE_MAX_DIMENSION = 1920;
+export const IMAGE_QUALITY = 0.80;
 export const MAX_IMAGE_SIZE = 15 * 1024 * 1024; // 15MB raw before compression
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 
@@ -51,14 +51,21 @@ export function generateFilename(guestName) {
  */
 export function downloadVideo(blob, filename) {
     const url = URL.createObjectURL(blob);
+
+    // iOS Safari ignores <a download> for blob: URLs — open in new tab instead
+    // so the user can save via the native share sheet.
+    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        return;
+    }
+
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
-    
-    // Cleanup
     setTimeout(() => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);

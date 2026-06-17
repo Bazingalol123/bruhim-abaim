@@ -19,6 +19,42 @@ const STORAGE_KEY_GUEST_NAME = 'wedding_guest_name_v1';
 const MAX_UPLOAD_SIZE_MB = 100;
 const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
 
+function buildImageThumb(file) {
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(file);
+    img.className = 'file-card-thumb';
+    return Promise.resolve(img);
+}
+
+function buildVideoThumb(file) {
+    return new Promise((resolve) => {
+        const video = document.createElement('video');
+        video.muted = true;
+        video.playsInline = true;
+        const src = URL.createObjectURL(file);
+        video.src = src;
+        video.currentTime = 0.1;
+        const done = (img) => { URL.revokeObjectURL(src); resolve(img); };
+        video.addEventListener('seeked', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 320;
+            canvas.height = video.videoHeight || 240;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            const img = document.createElement('img');
+            img.src = canvas.toDataURL('image/jpeg', 0.7);
+            img.className = 'file-card-thumb';
+            done(img);
+        }, { once: true });
+        video.addEventListener('error', () => {
+            const fallback = document.createElement('div');
+            fallback.className = 'file-card-thumb--video-fallback';
+            fallback.textContent = '🎬';
+            URL.revokeObjectURL(src);
+            resolve(fallback);
+        }, { once: true });
+    });
+}
+
 class VideoUI {
     constructor() {
         this.recorder = new VideoRecorder();
@@ -154,6 +190,7 @@ class VideoUI {
 
         // Error step
         this.errorMessage = document.getElementById('errorMessage');
+        this.errorDownloadBtn = document.getElementById('errorDownloadBtn');
         this.tryAgainBtn = document.getElementById('tryAgainBtn');
 
         // Direct mode continue button
@@ -162,6 +199,10 @@ class VideoUI {
         // Size hint
         this.mediaSizeHint = document.getElementById('mediaSizeHint');
         this.mediaSizeHintText = document.getElementById('mediaSizeHintText');
+
+        // Multi-file summary
+        this.multiFileSummary = document.getElementById('multiFileSummary');
+        this.skippedFilesNotice = document.getElementById('skippedFilesNotice');
     }
 
     /**
@@ -250,8 +291,16 @@ class VideoUI {
      * Detect image vs video from a picked file and dispatch to appropriate handler
      */
         handleMediaFileSelected(event) {
-            const file = event.target.files && event.target.files[0];
-            if (!file) return;
+            const files = Array.from(event.target.files || []);
+            if (!files.length) return;
+
+            if (files.length > 1) {
+                this.handleMultipleFilesSelected(files);
+                event.target.value = '';
+                return;
+            }
+
+            const file = files[0];
 
             // Size cap check — bail early on huge files (e.g., 4K 60fps videos from Android gallery)
             if (file.size > MAX_UPLOAD_SIZE_BYTES) {
@@ -275,6 +324,9 @@ class VideoUI {
             URL.revokeObjectURL(this.videoPlayback.src);
             this.videoPlayback.src = '';
         }
+        this.clearFileStack();
+        if (this.downloadVideoBtn) this.downloadVideoBtn.classList.remove('hidden');
+        this.pendingFiles = null;
         this.recordedBlob = null;
         this.currentImageData = null;
         this.currentMediaType = null;
@@ -307,6 +359,198 @@ class VideoUI {
     }
 
     /**
+     * Handle selection of multiple files — builds an upload queue and shows stacked preview
+     */
+    async handleMultipleFilesSelected(files) {
+        const valid = [];
+        const skipped = [];
+        for (const file of files) {
+            if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+                skipped.push(file.name || 'קובץ לא ידוע');
+            } else {
+                valid.push(file);
+            }
+        }
+
+        if (!valid.length) {
+            this.showError(
+                `כל הקבצים שנבחרו גדולים מדי. אפשר להעלות עד ${MAX_UPLOAD_SIZE_MB} מ"ב לקובץ.`
+            );
+            return;
+        }
+
+        this.hideSizeHint();
+        if (this.imagePreview) {
+            if (this.imagePreview.src) URL.revokeObjectURL(this.imagePreview.src);
+            this.imagePreview.src = '';
+            this.imagePreview.classList.add('hidden');
+        }
+        if (this.videoPlayback) {
+            if (this.videoPlayback.src) URL.revokeObjectURL(this.videoPlayback.src);
+            this.videoPlayback.src = '';
+            this.videoPlayback.classList.add('hidden');
+        }
+        this.clearFileStack();
+        this.recordedBlob = null;
+        this.currentImageData = null;
+        this.currentMediaType = 'queue';
+        this.currentMediaSource = null;
+        this.pendingFiles = valid;
+
+        if (this.skippedFilesNotice) {
+            if (skipped.length) {
+                this.skippedFilesNotice.textContent =
+                    `${skipped.length} ${skipped.length === 1 ? 'קובץ' : 'קבצים'} לא נכללו כי הם גדולים מדי (מעל ${MAX_UPLOAD_SIZE_MB} מ״ב)`;
+                this.skippedFilesNotice.classList.remove('hidden');
+            } else {
+                this.skippedFilesNotice.classList.add('hidden');
+            }
+        }
+
+        if (this.uploadVideoBtn) this.uploadVideoBtn.textContent = `העלו ${valid.length} קבצים 💚`;
+        if (this.downloadVideoBtn) this.downloadVideoBtn.classList.add('hidden');
+        if (this.retakeVideoBtn) this.retakeVideoBtn.textContent = 'בחרו שוב';
+
+        this.hideReviewError();
+        this.showStep('review');
+
+        // Build stacked card thumbnails (async — show step first so cards appear in place)
+        if (this.multiFileSummary) {
+            const stack = this.multiFileSummary;
+            stack.classList.remove('hidden');
+            stack.classList.add('file-stack');
+
+            const stackFiles = valid.slice(0, 8);
+            for (let i = 0; i < stackFiles.length; i++) {
+                const file = stackFiles[i];
+                const card = document.createElement('div');
+                card.className = 'file-card';
+                const angle = (Math.random() * 16 - 8).toFixed(1);
+                card.style.transform = `rotate(${angle}deg)`;
+                card.style.zIndex = i;
+
+                const thumb = file.type.startsWith('image/')
+                    ? await buildImageThumb(file)
+                    : await buildVideoThumb(file);
+                card.appendChild(thumb);
+                stack.appendChild(card);
+            }
+
+            const label = document.createElement('p');
+            label.className = 'file-stack-count';
+            label.textContent = `${valid.length} קבצים נבחרו`;
+            stack.appendChild(label);
+        }
+    }
+
+    /**
+     * Upload all files in this.pendingFiles in parallel batches of 3
+     */
+    async handleQueueUpload() {
+        const files = this.pendingFiles;
+        const total = files.length;
+        const rawName = this.guestNameInput.value.trim();
+        this.guestName = rawName || 'אורח/ת אנונימי/ת';
+
+        this.hideReviewError();
+        if (this.retakeVideoBtn) this.retakeVideoBtn.disabled = true;
+
+        this.uploadProgress.style.display = 'block';
+        this.uploadProgress.classList.remove('hidden');
+        this.updateProgress(0, `מכין ${total} קבצים...`);
+
+        let successCount = 0;
+        let failCount = 0;
+
+        const uploadOne = async (file) => {
+            const mimeType = file.type || '';
+            let isVideo = mimeType.startsWith('video/');
+            let isImage = mimeType.startsWith('image/');
+
+            if (!isVideo && !isImage) {
+                const name = (file.name || '').toLowerCase();
+                isVideo = ['.mp4', '.mov', '.webm', '.m4v', '.3gp', '.avi', '.mkv'].some(ext => name.endsWith(ext));
+                isImage = ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp', '.gif'].some(ext => name.endsWith(ext));
+            }
+
+            if (isImage) {
+                const imageData = await this.recorder.handleImageSelection(file);
+                await this.uploader.uploadWithRetry(
+                    () => this.uploader.uploadImage(
+                        imageData.blob,
+                        { guestName: this.guestName, width: imageData.width, height: imageData.height, originalFileSize: imageData.originalSize }
+                    )
+                );
+            } else if (isVideo) {
+                const blob = await this.recorder.handleFileSelection(file);
+                await this.uploader.uploadWithRetry(
+                    () => this.uploader.uploadVideo(
+                        blob,
+                        { guestName: this.guestName, duration: this.recorder.getDuration() }
+                    )
+                );
+            } else {
+                throw new Error(`${file.name || 'קובץ'}: סוג לא נתמך`);
+            }
+        };
+
+        const CONCURRENCY = 3;
+        const failedItems = []; // { name, errorType }
+
+        for (let i = 0; i < total; i += CONCURRENCY) {
+            const batch = files.slice(i, i + CONCURRENCY);
+            const results = await Promise.allSettled(batch.map(file => uploadOne(file)));
+            for (let j = 0; j < results.length; j++) {
+                const result = results[j];
+                if (result.status === 'fulfilled') {
+                    successCount++;
+                } else {
+                    failCount++;
+                    const err = result.reason;
+                    console.error(`❌ File upload failed (${batch[j].name}):`, err);
+                    failedItems.push({ name: batch[j].name, errorType: err.type || err.code || null });
+                }
+            }
+            const done = successCount + failCount;
+            this.updateProgress((done / total) * 100, `הועלו ${successCount} מתוך ${total}...`);
+        }
+
+        try {
+            if (rawName) {
+                localStorage.setItem(STORAGE_KEY_GUEST_NAME, rawName);
+                if (this.changeNameBtn) {
+                    this.changeNameBtn.style.display = 'inline-block';
+                    this.changeNameBtn.textContent = `לא ${rawName}? לחצו כאן לשינוי`;
+                }
+            }
+        } catch (e) {
+            console.warn('Could not persist guest name:', e);
+        }
+
+        if (failCount === 0) {
+            this.pendingFiles = null;
+            this.updateProgress(100, 'כל הקבצים הועלו! 🎉');
+            await new Promise(r => setTimeout(r, 800));
+            this.showSuccess();
+        } else {
+            const errorLines = [];
+            if (successCount > 0) errorLines.push(`${successCount} קבצים הועלו בהצלחה.`);
+            const failDescriptions = failedItems.map(({ name, errorType }) => {
+                const label = name ? `"${name}"` : 'קובץ';
+                if (errorType === 'video-too-long') return `${label} — סרטון ארוך מדי (עד 45 שניות)`;
+                if (errorType === 'image-too-large') return `${label} — תמונה גדולה מדי`;
+                if (errorType === 'invalid-image-type') return `${label} — סוג קובץ לא נתמך`;
+                if (errorType === 'storage/quota-exceeded') return `${label} — אין מקום באחסון`;
+                if (errorType === 'storage/unauthorized') return `${label} — אין הרשאת העלאה`;
+                return `${label} — שגיאה בהעלאה`;
+            });
+            errorLines.push(`לא הועלו: ${failDescriptions.join(' | ')}`);
+            errorLines.push('אנא נסו שוב.');
+            this.showReviewError(errorLines.join(' '));
+        }
+    }
+
+    /**
      * Handle file selection — video
      * @param {Event} event - File input change event (real or synthetic)
      */
@@ -326,7 +570,8 @@ class VideoUI {
             this.showReview();
         } catch (error) {
             console.error('❌ Error processing video file:', error);
-            this.showError(getErrorMessage(error));
+            const downloadFile = error.type === 'video-too-long' ? file : null;
+            this.showError(getErrorMessage(error), downloadFile);
         } finally {
             event.target.value = '';
         }
@@ -375,11 +620,13 @@ class VideoUI {
             this.imagePreview.classList.remove('hidden');
             this.imagePreview.src = URL.createObjectURL(imageData.blob);
         }
+        this.clearFileStack();
 
         if (this.uploadVideoBtn) {
             this.uploadVideoBtn.textContent = 'העלו את התמונה 💚';
         }
         if (this.downloadVideoBtn) {
+            this.downloadVideoBtn.classList.remove('hidden');
             this.downloadVideoBtn.textContent = '💾 שמרו אצלכם';
         }
         if (this.retakeVideoBtn) {
@@ -408,13 +655,22 @@ class VideoUI {
         // Disable button immediately, before any async work
         if (this.uploadVideoBtn) this.uploadVideoBtn.disabled = true;
 
+        const beforeUnloadHandler = (e) => {
+            e.preventDefault();
+            e.returnValue = '';
+        };
+        window.addEventListener('beforeunload', beforeUnloadHandler);
+
         try {
-            if (this.currentMediaType === 'image') {
+            if (this.pendingFiles?.length > 0) {
+                await this.handleQueueUpload();
+            } else if (this.currentMediaType === 'image') {
                 await this.handleImageUpload();
             } else {
                 await this.handleVideoUpload();
             }
         } finally {
+            window.removeEventListener('beforeunload', beforeUnloadHandler);
             // The type-specific handlers also reset this in their own finally blocks,
             // which is harmless. Doing it here too guarantees it gets reset even if
             // a handler throws synchronously before its own try/finally is entered.
@@ -635,7 +891,8 @@ class VideoUI {
             return;
         }
         try {
-            const filename = generateFilename(this.guestName);
+            const guestName = this.guestName || this.guestNameInput?.value?.trim() || 'אורח';
+            const filename = generateFilename(guestName);
             downloadVideo(this.recordedBlob, filename);
             console.log('✅ Video downloaded successfully');
         } catch (error) {
@@ -650,7 +907,8 @@ class VideoUI {
             return;
         }
         try {
-            const filename = generateImageFilename(this.guestName);
+            const guestName = this.guestName || this.guestNameInput?.value?.trim() || 'אורח';
+            const filename = generateImageFilename(guestName);
             downloadVideo(this.currentImageData.blob, filename);
             console.log('✅ Image downloaded successfully');
         } catch (error) {
@@ -693,11 +951,13 @@ class VideoUI {
             this.imagePreview.classList.add('hidden');
             this.imagePreview.src = '';
         }
+        this.clearFileStack();
 
         if (this.uploadVideoBtn) {
             this.uploadVideoBtn.textContent = 'העלו את הסרטון 💚';
         }
         if (this.downloadVideoBtn) {
+            this.downloadVideoBtn.classList.remove('hidden');
             this.downloadVideoBtn.textContent = '💾 שמרו אצלכם';
         }
         if (this.retakeVideoBtn) {
@@ -757,6 +1017,8 @@ class VideoUI {
         if (this.successText) {
             if (this.currentMediaType === 'image') {
                 this.successText.textContent = 'התמונה שלכם נשלחה בהצלחה 💚';
+            } else if (this.currentMediaType === 'queue') {
+                this.successText.textContent = 'הקבצים שלכם נשלחו בהצלחה 💚';
             } else {
                 this.successText.textContent = 'הסרטון שלכם נשלח בהצלחה 💚';
             }
@@ -800,6 +1062,20 @@ class VideoUI {
         }
     }
 
+    clearFileStack() {
+        if (this.multiFileSummary) {
+            this.multiFileSummary.querySelectorAll('img[src^="blob:"]').forEach(img => {
+                URL.revokeObjectURL(img.src);
+            });
+            this.multiFileSummary.innerHTML = '';
+            this.multiFileSummary.classList.add('hidden');
+            this.multiFileSummary.classList.remove('file-stack');
+        }
+        if (this.skippedFilesNotice) {
+            this.skippedFilesNotice.classList.add('hidden');
+        }
+    }
+
     /**
      * Navigate to specific step
      * @param {string} step - Step name (media, review, success, error)
@@ -819,9 +1095,30 @@ class VideoUI {
     /**
      * Show terminal error message (Firebase not configured, blob corrupted, etc.)
      * @param {string} message - Error message
+     * @param {File|null} downloadFile - Optional file the user can save locally (e.g. too-long video)
      */
-    showError(message) {
+    showError(message, downloadFile = null) {
         this.errorMessage.textContent = message;
+
+        if (this.errorDownloadBtn) {
+            if (downloadFile) {
+                this.errorDownloadBtn.classList.remove('hidden');
+                this.errorDownloadBtn.onclick = () => {
+                    const url = URL.createObjectURL(downloadFile);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = downloadFile.name || 'video.mp4';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                };
+            } else {
+                this.errorDownloadBtn.classList.add('hidden');
+                this.errorDownloadBtn.onclick = null;
+            }
+        }
+
         this.showStep('error');
         this.recorder.cleanup();
     }

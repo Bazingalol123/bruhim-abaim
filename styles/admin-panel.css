@@ -259,6 +259,50 @@ button { font-family: inherit; }
 
 .btn-clear-selection:hover { color: var(--primary); border-color: var(--primary); }
 
+.btn-delete-selected {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.55rem 1.1rem;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.28);
+}
+
+.btn-delete-selected:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(220, 38, 38, 0.38); }
+
+.btn-delete-selected:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-delete-small {
+    flex: 1;
+    padding: 0.65rem 0.8rem;
+    background: var(--surface);
+    color: var(--danger);
+    border: 1px solid rgba(220, 38, 38, 0.25);
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    box-shadow: var(--shadow-soft);
+    font-family: inherit;
+}
+
+.btn-delete-small:hover { background: #fef2f2; border-color: var(--danger); transform: translateY(-1px); }
+
 .btn-upload-drive { background: linear-gradient(135deg, #2b7de9 0%, #1a73e8 100%); }
 
 .btn-upload-drive:disabled,
@@ -546,6 +590,8 @@ button:focus-visible,
 .btn-download-qr:focus-visible,
 .btn-select-all:focus-visible,
 .btn-clear-selection:focus-visible,
+.btn-delete-selected:focus-visible,
+.btn-delete-small:focus-visible,
 .play-button:focus-visible {
     outline: 2px solid rgba(37, 99, 235, 0.45);
     outline-offset: 2px;
