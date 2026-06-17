@@ -138,6 +138,7 @@ class VideoUI {
         this.videoPlayback = document.getElementById('videoPlayback');
         this.imagePreview = document.getElementById('imagePreview');
         this.uploadVideoBtn = document.getElementById('uploadVideoBtn');
+        this.shareWhatsAppBtn = document.getElementById('shareWhatsAppBtn');
         this.downloadVideoBtn = document.getElementById('downloadVideoBtn');
         this.retakeVideoBtn = document.getElementById('retakeVideoBtn');
         this.uploadProgress = document.getElementById('uploadProgress');
@@ -203,6 +204,13 @@ class VideoUI {
         if (this.uploadVideoBtn) {
             this.uploadVideoBtn.addEventListener('click', () => {
                 this.handleUpload();
+            });
+        }
+
+        // WhatsApp share button
+        if (this.shareWhatsAppBtn) {
+            this.shareWhatsAppBtn.addEventListener('click', () => {
+                this.handleWhatsAppShare();
             });
         }
 
@@ -602,6 +610,12 @@ class VideoUI {
                 this.downloadVideoBtn.disabled = false;
             }
         }
+    }
+
+    handleWhatsAppShare() {
+        const url = window.location.href.split('?')[0]; // strip query params
+        const text = encodeURIComponent(`צלמו לנו רגעים מהחתונה! 💚\n${url}`);
+        window.open(`https://wa.me/?text=${text}`, '_blank');
     }
 
     /**

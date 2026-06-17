@@ -153,6 +153,18 @@
     transform: translateY(-1px);
 }
 
+.btn-whatsapp {
+    background: #25D366;
+    color: #fff;
+    border: 2px solid #25D366;
+}
+
+.btn-whatsapp:hover {
+    background: #1ebe5d;
+    border-color: #1ebe5d;
+    transform: translateY(-1px);
+}
+
 /* Step 2: Recording UI */
 .video-preview-container {
     position: relative;
