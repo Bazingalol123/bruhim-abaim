@@ -17,7 +17,7 @@ import {
     getDownloadURL,
     getMetadata,
     deleteObject
-} from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js';
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
 import {
     collection,
     getDocs,
@@ -25,7 +25,7 @@ import {
     orderBy,
     deleteDoc,
     doc
-} from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 // DOM Elements
 const userEmailElement = document.getElementById('userEmail');
