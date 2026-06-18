@@ -405,11 +405,11 @@
                             downloadURL = 'https://firebasestorage.googleapis.com/v0/b/'
                                 + firebaseConfig.storageBucket + '/o/'
                                 + encodeURIComponent(storagePath) + '?alt=media';
-                            console.log('[Upload] Constructed fallback URL:', downloadURL);
+
                         } else {
                             downloadURL = urlResult.value;
                         }
-                        console.log('[Upload] Using download URL:', downloadURL);
+                        console.log('[Upload] Download URL obtained');
 
                         if (currentType === 'image') {
                             docData = {
