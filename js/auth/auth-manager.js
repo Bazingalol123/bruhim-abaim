@@ -8,7 +8,7 @@ import {
     signInWithEmailAndPassword,
     signOut,
     onAuthStateChanged
-} from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
 // Auth initialization state
 let authInitialized = false;

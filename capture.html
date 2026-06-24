@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://firebasestorage.googleapis.com; media-src 'self' blob: https://firebasestorage.googleapis.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com https://www.google.com https://www.gstatic.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://accounts.google.com https://www.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com; font-src 'self' https://fonts.gstatic.com https://api.fontshare.com https://cdn.fontshare.com; frame-src 'self' https://accounts.google.com https://www.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
     <title>אודליה ועומר 💍 צלמו תמונה</title>
     <link rel="icon" type="image/png" href="images/logo.png">
 
@@ -115,14 +116,12 @@
     </div>
 </div>
 
-<!-- Firebase compat SDK (async) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-
-<script>
-(function() {
-    'use strict';
+<!-- Firebase modular SDK -->
+<script type="module">
+    import { initializeApp }                                          from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { initializeAppCheck, ReCaptchaV3Provider }               from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js';
+    import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
+    import { getFirestore, collection, addDoc, serverTimestamp }     from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
     // ── Firebase Init ────────────────────────────────────────────────
     const firebaseConfig = {
@@ -134,9 +133,13 @@
         appId: "1:1047795100077:web:30e6172ea60c7db2065924"
     };
 
-    const app = firebase.initializeApp(firebaseConfig);
-    const storage = firebase.storage();
-    const db = firebase.firestore();
+    const app = initializeApp(firebaseConfig);
+    initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider('6LfMBSUtAAAAAKAwpp2Dlo3TaMLmEg22fbI1_mMy'),
+        isTokenAutoRefreshEnabled: true
+    });
+    const storage = getStorage(app);
+    const db = getFirestore(app, 'default');
 
     // ── Constants ────────────────────────────────────────────────────
     const MAX_VIDEO_DURATION = 45;
@@ -217,10 +220,7 @@
 
     // ── Utility: UUID ────────────────────────────────────────────────
     function uuid() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            var r = Math.random() * 16 | 0;
-            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-        });
+        return crypto.randomUUID();
     }
 
     // ── Utility: detect device ───────────────────────────────────────
@@ -373,8 +373,8 @@
 
             console.log('[Upload] Starting Storage upload:', storagePath);
 
-            var storageRef = storage.ref(storagePath);
-            uploadTask = storageRef.put(currentBlob, {
+            var storageRef = ref(storage, storagePath);
+            uploadTask = uploadBytesResumable(storageRef, currentBlob, {
                 contentType: contentType,
                 customMetadata: { guestName: guestName, uploadedAt: new Date().toISOString() }
             });
@@ -395,7 +395,7 @@
                     try {
                         // Wrap getDownloadURL with timeout — ad blockers can block this too
                         var urlResult = await withTimeout(
-                            uploadTask.snapshot.ref.getDownloadURL(), 8000
+                            getDownloadURL(uploadTask.snapshot.ref), 8000
                         );
 
                         var downloadURL;
@@ -405,16 +405,16 @@
                             downloadURL = 'https://firebasestorage.googleapis.com/v0/b/'
                                 + firebaseConfig.storageBucket + '/o/'
                                 + encodeURIComponent(storagePath) + '?alt=media';
-                            console.log('[Upload] Constructed fallback URL:', downloadURL);
+
                         } else {
                             downloadURL = urlResult.value;
                         }
-                        console.log('[Upload] Using download URL:', downloadURL);
+                        console.log('[Upload] Download URL obtained');
 
                         if (currentType === 'image') {
                             docData = {
                                 guestName: guestName,
-                                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                                timestamp: serverTimestamp(),
                                 mediaType: 'image',
                                 mediaUrl: downloadURL,
                                 videoUrl: downloadURL,
@@ -433,13 +433,13 @@
                                 uploadComplete: true,
                                 viewed: false,
                                 starred: false,
-                                uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                                uploadedAt: serverTimestamp(),
+                                updatedAt: serverTimestamp()
                             };
                         } else {
                             docData = {
                                 guestName: guestName,
-                                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                                timestamp: serverTimestamp(),
                                 mediaType: 'video',
                                 mediaUrl: downloadURL,
                                 videoUrl: downloadURL,
@@ -455,8 +455,8 @@
                                 uploadComplete: true,
                                 viewed: false,
                                 starred: false,
-                                uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                                uploadedAt: serverTimestamp(),
+                                updatedAt: serverTimestamp()
                             };
                         }
 
@@ -470,7 +470,7 @@
                             try {
                                 console.log('[Upload] Firestore write attempt ' + attempt + '/' + maxRetries);
                                 var writeResult = await withTimeout(
-                                    db.collection('videoMetadata').add(docData), 8000
+                                    addDoc(collection(db, 'videoMetadata'), docData), 8000
                                 );
                                 if (writeResult.timedOut) {
                                     console.warn('[Upload] Firestore write attempt ' + attempt + ' timed out after 8s');
@@ -611,7 +611,6 @@
         return map[error.code] || 'שגיאה בהעלאת הקובץ. אנא בדקו את החיבור לאינטרנט ונסו שוב.';
     }
 
-})();
 </script>
 
 <!-- Service worker registration -->

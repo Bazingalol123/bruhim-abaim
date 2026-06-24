@@ -4,8 +4,8 @@
  */
 
 import { storage, db } from '../config/firebase-config.js';
-import { ref, uploadBytesResumable, getDownloadURL } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js';
-import { collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js';
+import { ref, uploadBytesResumable, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
+import { collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { detectDevice } from './video-utils.js';
 
 class VideoUploader {
@@ -18,11 +18,7 @@ class VideoUploader {
      * @returns {string}
      */
     generateVideoId() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0;
-            const v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
+        return crypto.randomUUID();
     }
 
     /**
@@ -76,7 +72,7 @@ class VideoUploader {
                     try {
                         // Get download URL
                         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                        console.log('✅ Upload complete, URL:', downloadURL);
+                        console.log('✅ Upload complete');
 
                         // Save metadata to Firestore (with mediaType for forward compat)
                         const docId = await this.saveMetadata(videoId, downloadURL, metadata, videoBlob.size);
@@ -209,7 +205,7 @@ class VideoUploader {
                 async () => {
                     try {
                         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                        console.log('✅ Image upload complete, URL:', downloadURL);
+                        console.log('✅ Image upload complete');
 
                         // Save image metadata to Firestore
                         const docId = await this.saveImageMetadata(imageId, downloadURL, metadata, imageBlob.size);
